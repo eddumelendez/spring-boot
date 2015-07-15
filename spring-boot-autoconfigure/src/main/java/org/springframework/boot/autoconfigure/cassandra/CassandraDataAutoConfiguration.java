@@ -16,10 +16,7 @@
 
 package org.springframework.boot.autoconfigure.cassandra;
 
-import org.springframework.beans.factory.BeanClassLoaderAware;
-import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -27,12 +24,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.cassandra.config.CassandraEntityClassScanner;
 import org.springframework.data.cassandra.config.CassandraSessionFactoryBean;
+import org.springframework.data.cassandra.config.SchemaAction;
 import org.springframework.data.cassandra.convert.CassandraConverter;
 import org.springframework.data.cassandra.convert.MappingCassandraConverter;
 import org.springframework.data.cassandra.core.CassandraAdminOperations;
-import org.springframework.data.cassandra.core.CassandraAdminTemplate;
+import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.data.cassandra.mapping.BasicCassandraMappingContext;
 import org.springframework.data.cassandra.mapping.CassandraMappingContext;
 
@@ -43,18 +40,14 @@ import com.datastax.driver.core.Session;
  * {@link EnableAutoConfiguration Auto-configuration} for Spring Data's Cassandra support.
  *
  * @author Julien Dubois
+ * @author Eddú Meléndez
  * @since 1.3.0
  */
 @Configuration
 @ConditionalOnClass({ Cluster.class, CassandraAdminOperations.class })
 @EnableConfigurationProperties(CassandraProperties.class)
 @AutoConfigureAfter(CassandraAutoConfiguration.class)
-public class CassandraDataAutoConfiguration implements BeanClassLoaderAware {
-
-	private ClassLoader beanClassLoader;
-
-	@Autowired
-	private BeanFactory beanFactory;
+public class CassandraDataAutoConfiguration {
 
 	@Autowired
 	private CassandraProperties properties;
@@ -62,44 +55,35 @@ public class CassandraDataAutoConfiguration implements BeanClassLoaderAware {
 	@Autowired
 	private Cluster cluster;
 
-	@Override
-	public void setBeanClassLoader(ClassLoader classLoader) {
-		this.beanClassLoader = classLoader;
+	@Bean
+	@ConditionalOnMissingBean
+	public CassandraMappingContext cassandraMapping() {
+		return new BasicCassandraMappingContext();
 	}
 
 	@Bean
 	@ConditionalOnMissingBean
-	public CassandraMappingContext cassandraMapping() throws ClassNotFoundException {
-		BasicCassandraMappingContext bean = new BasicCassandraMappingContext();
-		bean.setInitialEntitySet(CassandraEntityClassScanner
-				.scan(AutoConfigurationPackages.get(this.beanFactory)));
-		bean.setBeanClassLoader(this.beanClassLoader);
-		return bean;
-	}
-
-	@Bean
-	@ConditionalOnMissingBean
-	public CassandraConverter cassandraConverter(CassandraMappingContext mapping)
-			throws Exception {
+	public CassandraConverter cassandraConverter(CassandraMappingContext mapping) {
 		return new MappingCassandraConverter(mapping);
 	}
 
 	@Bean
-	@ConditionalOnMissingBean({ CassandraSessionFactoryBean.class, Session.class })
-	public CassandraSessionFactoryBean session(CassandraConverter converter)
+	@ConditionalOnMissingBean
+	public Session session(CassandraConverter converter)
 			throws Exception {
 		CassandraSessionFactoryBean session = new CassandraSessionFactoryBean();
 		session.setCluster(this.cluster);
 		session.setConverter(converter);
 		session.setKeyspaceName(this.properties.getKeyspaceName());
-		return session;
+		session.setSchemaAction(SchemaAction.NONE);
+		return session.getObject();
 	}
 
 	@Bean
 	@ConditionalOnMissingBean
-	public CassandraAdminOperations cassandraTemplate(Session session,
+	public CassandraTemplate cassandraTemplate(Session session,
 			CassandraConverter converter) throws Exception {
-		return new CassandraAdminTemplate(session, converter);
+		return new CassandraTemplate(session, converter);
 	}
 
 }
