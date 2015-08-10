@@ -16,11 +16,14 @@ list it here. Just send a pull request for this page.
 
 WARNING: While the
 http://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#using-boot-starter-poms[reference documentation]
-mentions that 3rd party starters should not start with `spring-boot-starter`, some starters
+mentions that 3rd party starters should not start with `spring-boot`, some starters
 do as they were designed before this was clarified.
 
 |===
 | Name | Location
+
+| http://secondmarket.github.io/mongeez/[Mongeez]
+| https://github.com/hzpz/mongeez-spring-boot-starter/
 
 | http://ha-jdbc.github.io/[HA JDBC]
 | https://github.com/lievendoclo/hajdbc-spring-boot

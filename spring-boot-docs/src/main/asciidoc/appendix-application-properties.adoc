@@ -56,10 +56,11 @@ content into your application; rather pick only the properties that you need.
 	spring.output.ansi.enabled=detect # Configure the ANSI output ("detect", "always", "never")
 
 	# LOGGING
-	logging.path=/var/log
-	logging.file=myapp.log
 	logging.config= # location of config file (default classpath:logback.xml for logback)
+	logging.exception-conversion-word=%rEx # conversion word used when logging exceptions
+	logging.file=myapp.log
 	logging.level.*= # levels for loggers, e.g. "logging.level.org.springframework=DEBUG" (TRACE, DEBUG, INFO, WARN, ERROR, FATAL, OFF)
+	logging.path=/var/log
 	logging.pattern.console= # appender pattern for output to the console (only supported with the default logback setup)
 	logging.pattern.file= # appender pattern for output to the file (only supported with the default logback setup)
 
@@ -105,8 +106,11 @@ content into your application; rather pick only the properties that you need.
 	server.ssl.trust-store-password=
 	server.ssl.trust-store-provider=
 	server.ssl.trust-store-type=
-	server.tomcat.access-log-pattern= # log pattern of the access log
-	server.tomcat.access-log-enabled=false # is access logging enabled
+	server.tomcat.accesslog.directory=logs # directory in which log files are created
+	server.tomcat.accesslog.enabled=false # is access logging enabled
+	server.tomcat.accesslog.pattern= # log pattern of the access log
+	server.tomcat.accesslog.prefix=access_log # log file name prefix
+	server.tomcat.accesslog.suffix=.log # log file name suffix
 	server.tomcat.internal-proxies=10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|\\
 			192\\.168\\.\\d{1,3}\\.\\d{1,3}|\\
 			169\\.254\\.\\d{1,3}\\.\\d{1,3}|\\
@@ -123,9 +127,9 @@ content into your application; rather pick only the properties that you need.
 	server.tomcat.max-http-header-size= # maximum size in bytes of the HTTP message header
 	server.tomcat.max-threads = 0 # number of threads in protocol handler
 	server.tomcat.uri-encoding = UTF-8 # character encoding to use for URL decoding
-	server.undertow.access-log-enabled=false # if access logging is enabled
-	server.undertow.access-log-pattern=common # log pattern of the access log
-	server.undertow.access-log-dir=logs # access logs directory
+	server.undertow.accesslog.enabled=false # if access logging is enabled
+	server.undertow.accesslog.pattern=common # log pattern of the access log
+	server.undertow.accesslog.dir=logs # access logs directory
 	server.undertow.buffer-size= # size of each buffer in bytes
     server.undertow.buffers-per-region= # number of buffer per region
     server.undertow.direct-buffers=false # allocate buffers outside the Java heap
@@ -161,6 +165,10 @@ content into your application; rather pick only the properties that you need.
 	multipart.location= # Intermediate location of uploaded files.
 	multipart.max-file-size=1Mb # Max file size.
 	multipart.max-request-size=10Mb # Max request size.
+
+	# H2 Web Console ({sc-spring-boot-autoconfigure}/h2/H2ConsoleProperties.{sc-ext}[H2ConsoleProperties])
+	spring.h2.console.enabled=false # Enable the console
+	spring.h2.console.path=/h2-console # Path at which the console can be accessed
 
 	# SPRING HATEOAS ({sc-spring-boot-autoconfigure}/hateoas/HateoasProperties.{sc-ext}[HateoasProperties])
 	spring.hateoas.apply-to-primary-object-mapper=true # if the primary mapper should also be configured
@@ -201,6 +209,7 @@ content into your application; rather pick only the properties that you need.
 
 	# FREEMARKER ({sc-spring-boot-autoconfigure}/freemarker/FreeMarkerAutoConfiguration.{sc-ext}[FreeMarkerAutoConfiguration])
 	spring.freemarker.allow-request-override=false
+	spring.freemarker.allow-session-override=false
 	spring.freemarker.cache=true
 	spring.freemarker.check-template-location=true
 	spring.freemarker.charset=UTF-8
@@ -231,6 +240,7 @@ content into your application; rather pick only the properties that you need.
 
 	# VELOCITY TEMPLATES ({sc-spring-boot-autoconfigure}/velocity/VelocityAutoConfiguration.{sc-ext}[VelocityAutoConfiguration])
 	spring.velocity.allow-request-override=false
+	spring.velocity.allow-session-override=false
 	spring.velocity.cache=true
 	spring.velocity.check-template-location=true
 	spring.velocity.charset=UTF-8
@@ -613,6 +623,7 @@ content into your application; rather pick only the properties that you need.
 	# ----------------------------------------
 
     # DEVTOOLS ({sc-spring-boot-devtools}/autoconfigure/DevToolsProperties.{sc-ext}[DevToolsProperties])
+    spring.devtools.restart.additional-paths= # additional paths to watch for changes
     spring.devtools.restart.enabled=true # enable automatic restart
     spring.devtools.restart.exclude= # patterns that should be excluding for triggering a full restart
     spring.devtools.restart.poll-interval= # amount of time (in milliseconds) to wait between polling for classpath changes
@@ -690,6 +701,9 @@ content into your application; rather pick only the properties that you need.
 	endpoints.trace.enabled=true
 
 	# HYPERMEDIA ENDPOINTS
+	endpoints.actuator.enabled=true
+	endpoints.actuator.path=/actuator
+	endpoints.actuator.sensitive=false
 	endpoints.docs.curies.enabled=false
 	endpoints.docs.enabled=true
 	endpoints.docs.path=/docs
@@ -700,9 +714,6 @@ content into your application; rather pick only the properties that you need.
 	endpoints.hal.enabled=true
 	endpoints.hal.path= # Redirects root HTML traffic to the HAL browser
 	endpoints.hal.sensitive=false
-	endpoints.links.enabled=true
-	endpoints.links.path= # / if not already used, /links instead
-	endpoints.links.sensitive=false
 	endpoints.liquibase.enabled=true
 	endpoints.liquibase.id=liquibase
 	endpoints.liquibase.sensitive=false

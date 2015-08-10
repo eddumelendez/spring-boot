@@ -467,14 +467,9 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 	public static class Tomcat {
 
 		/**
-		 * Format pattern for access logs.
+		 * Access log configuration.
 		 */
-		private String accessLogPattern;
-
-		/**
-		 * Enable access log.
-		 */
-		private boolean accessLogEnabled = false;
+		private final Accesslog accesslog = new Accesslog();
 
 		/**
 		 * Regular expression that matches proxies that are to be trusted.
@@ -550,12 +545,50 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 			this.maxHttpHeaderSize = maxHttpHeaderSize;
 		}
 
-		public boolean getAccessLogEnabled() {
-			return this.accessLogEnabled;
+		public Accesslog getAccesslog() {
+			return this.accesslog;
 		}
 
+		/**
+		 * Specify if access log is enabled.
+		 * @return {@code true} if access log is enabled
+		 * @deprecated since 1.3.0 in favor of {@code server.tomcat.accesslog.enabled}
+		 */
+		@Deprecated
+		@DeprecatedConfigurationProperty(replacement = "server.tomcat.accesslog.enabled")
+		public boolean getAccessLogEnabled() {
+			return this.accesslog.isEnabled();
+		}
+
+		/**
+		 * Set if access log is enabled.
+		 * @param accessLogEnabled the access log enable flag
+		 * @deprecated since 1.3.0 in favor of {@code server.tomcat.accesslog.enabled}
+		 */
+		@Deprecated
 		public void setAccessLogEnabled(boolean accessLogEnabled) {
-			this.accessLogEnabled = accessLogEnabled;
+			getAccesslog().setEnabled(accessLogEnabled);
+		}
+
+		/**
+		 * Get the format pattern for access logs.
+		 * @return the format pattern for access logs
+		 * @deprecated since 1.3.0 in favor of {@code server.tomcat.accesslog.pattern}
+		 */
+		@Deprecated
+		@DeprecatedConfigurationProperty(replacement = "server.tomcat.accesslog.pattern")
+		public String getAccessLogPattern() {
+			return this.accesslog.getPattern();
+		}
+
+		/**
+		 * Set the format pattern for access logs
+		 * @param accessLogPattern the pattern for access logs
+		 * @deprecated since 1.3.0 in favor of {@code server.tomcat.accesslog.pattern}
+		 */
+		@Deprecated
+		public void setAccessLogPattern(String accessLogPattern) {
+			this.accesslog.setPattern(accessLogPattern);
 		}
 
 		public int getBackgroundProcessorDelay() {
@@ -572,14 +605,6 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 
 		public void setBasedir(File basedir) {
 			this.basedir = basedir;
-		}
-
-		public String getAccessLogPattern() {
-			return this.accessLogPattern;
-		}
-
-		public void setAccessLogPattern(String accessLogPattern) {
-			this.accessLogPattern = accessLogPattern;
 		}
 
 		public String getInternalProxies() {
@@ -642,7 +667,7 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 			if (this.maxHttpHeaderSize > 0) {
 				customizeMaxHttpHeaderSize(factory);
 			}
-			if (this.accessLogEnabled) {
+			if (this.accesslog.enabled) {
 				customizeAccessLog(factory);
 			}
 			if (getUriEncoding() != null) {
@@ -711,12 +736,87 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 		}
 
 		private void customizeAccessLog(TomcatEmbeddedServletContainerFactory factory) {
-			AccessLogValve valve = new AccessLogValve();
-			String accessLogPattern = getAccessLogPattern();
-			valve.setPattern(accessLogPattern == null ? "common" : accessLogPattern);
-			valve.setSuffix(".log");
-			factory.addContextValves(valve);
+			factory.addContextValves(this.accesslog.createAccessLogValve());
 		}
+
+		public static class Accesslog {
+
+			/**
+			 * Enable access log.
+			 */
+			private boolean enabled = false;
+
+			/**
+			 * Format pattern for access logs.
+			 */
+			private String pattern = "common";
+
+			/**
+			 * Directory in which log files are created. Can be relative to the tomcat
+			 * base dir or absolute.
+			 */
+			private String directory = "logs";
+
+			/**
+			 * Log file name prefix.
+			 */
+			protected String prefix = "access_log";
+
+			/**
+			 * Log file name suffix.
+			 */
+			private String suffix = ".log";
+
+			AccessLogValve createAccessLogValve() {
+				AccessLogValve valve = new AccessLogValve();
+				valve.setPattern(this.pattern);
+				valve.setDirectory(this.directory);
+				valve.setPrefix(this.prefix);
+				valve.setSuffix(this.suffix);
+				return valve;
+			}
+
+			public boolean isEnabled() {
+				return this.enabled;
+			}
+
+			public void setEnabled(boolean enabled) {
+				this.enabled = enabled;
+			}
+
+			public String getPattern() {
+				return this.pattern;
+			}
+
+			public void setPattern(String pattern) {
+				this.pattern = pattern;
+			}
+
+			public String getDirectory() {
+				return this.directory;
+			}
+
+			public void setDirectory(String directory) {
+				this.directory = directory;
+			}
+
+			public String getPrefix() {
+				return this.prefix;
+			}
+
+			public void setPrefix(String prefix) {
+				this.prefix = prefix;
+			}
+
+			public String getSuffix() {
+				return this.suffix;
+			}
+
+			public void setSuffix(String suffix) {
+				this.suffix = suffix;
+			}
+		}
+
 	}
 
 	public static class Undertow {
@@ -746,20 +846,7 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 		 */
 		private Boolean directBuffers;
 
-		/**
-		 * Format pattern for access logs.
-		 */
-		private String accessLogPattern = "common";
-
-		/**
-		 * Enable access log.
-		 */
-		private boolean accessLogEnabled = false;
-
-		/**
-		 * Undertow access log directory.
-		 */
-		private File accessLogDir = new File("logs");
+		private final Accesslog accesslog = new Accesslog();
 
 		public Integer getBufferSize() {
 			return this.bufferSize;
@@ -801,28 +888,71 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 			this.directBuffers = directBuffers;
 		}
 
+		public Accesslog getAccesslog() {
+			return this.accesslog;
+		}
+
+		/**
+		 * Get the format pattern for access logs.
+		 * @return the format pattern for access logs
+		 * @deprecated since 1.3.0 in favor of {@code server.undertow.accesslog.pattern}
+		 */
+		@Deprecated
+		@DeprecatedConfigurationProperty(replacement = "server.undertow.accesslog.pattern")
 		public String getAccessLogPattern() {
-			return this.accessLogPattern;
+			return this.accesslog.getPattern();
 		}
 
+		/**
+		 * Set the format pattern for access logs
+		 * @param accessLogPattern the pattern for access logs
+		 * @deprecated since 1.3.0 in favor of {@code server.undertow.accesslog.pattern}
+		 */
+		@Deprecated
 		public void setAccessLogPattern(String accessLogPattern) {
-			this.accessLogPattern = accessLogPattern;
+			this.accesslog.setPattern(accessLogPattern);
 		}
 
+		/**
+		 * Specify if access log is enabled.
+		 * @return {@code true} if access log is enabled
+		 * @deprecated since 1.3.0 in favor of {@code server.undertow.accesslog.enabled}
+		 */
+		@Deprecated
+		@DeprecatedConfigurationProperty(replacement = "server.undertow.accesslog.enabled")
 		public boolean isAccessLogEnabled() {
-			return this.accessLogEnabled;
+			return this.accesslog.isEnabled();
 		}
 
+		/**
+		 * Set if access log is enabled.
+		 * @param accessLogEnabled the access log enable flag
+		 * @deprecated since 1.3.0 in favor of {@code server.undertow.accesslog.enabled}
+		 */
+		@Deprecated
 		public void setAccessLogEnabled(boolean accessLogEnabled) {
-			this.accessLogEnabled = accessLogEnabled;
+			getAccesslog().setEnabled(accessLogEnabled);
 		}
 
+		/**
+		 * Get the access log directory.
+		 * @return the access log directory
+		 * @deprecated since 1.3.0 in favor of {@code server.undertow.accesslog.dir}
+		 */
+		@Deprecated
+		@DeprecatedConfigurationProperty(replacement = "server.undertow.accesslog.dir")
 		public File getAccessLogDir() {
-			return this.accessLogDir;
+			return this.accesslog.getDir();
 		}
 
+		/**
+		 * Set the access log directory.
+		 * @param accessLogDir the access log directory
+		 * @deprecated since 1.3.0 in favor of {@code server.tomcat.accesslog.dir}
+		 */
+		@Deprecated
 		public void setAccessLogDir(File accessLogDir) {
-			this.accessLogDir = accessLogDir;
+			getAccesslog().setDir(accessLogDir);
 		}
 
 		void customizeUndertow(UndertowEmbeddedServletContainerFactory factory) {
@@ -831,9 +961,52 @@ public class ServerProperties implements EmbeddedServletContainerCustomizer, Ord
 			factory.setIoThreads(this.ioThreads);
 			factory.setWorkerThreads(this.workerThreads);
 			factory.setDirectBuffers(this.directBuffers);
-			factory.setAccessLogDirectory(this.accessLogDir);
-			factory.setAccessLogPattern(this.accessLogPattern);
-			factory.setAccessLogEnabled(this.accessLogEnabled);
+			factory.setAccessLogDirectory(this.accesslog.dir);
+			factory.setAccessLogPattern(this.accesslog.pattern);
+			factory.setAccessLogEnabled(this.accesslog.enabled);
+		}
+
+		public static class Accesslog {
+
+			/**
+			 * Enable access log.
+			 */
+			private boolean enabled = false;
+
+			/**
+			 * Format pattern for access logs.
+			 */
+			private String pattern = "common";
+
+			/**
+			 * Undertow access log directory.
+			 */
+			private File dir = new File("logs");
+
+			public boolean isEnabled() {
+				return this.enabled;
+			}
+
+			public void setEnabled(boolean enabled) {
+				this.enabled = enabled;
+			}
+
+			public String getPattern() {
+				return this.pattern;
+			}
+
+			public void setPattern(String pattern) {
+				this.pattern = pattern;
+			}
+
+			public File getDir() {
+				return this.dir;
+			}
+
+			public void setDir(File dir) {
+				this.dir = dir;
+			}
+
 		}
 
 	}

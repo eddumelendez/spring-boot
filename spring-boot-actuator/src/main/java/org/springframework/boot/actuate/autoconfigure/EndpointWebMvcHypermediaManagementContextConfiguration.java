@@ -23,38 +23,28 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.PostConstruct;
 
-import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.actuate.endpoint.mvc.ActuatorDocsEndpoint;
-import org.springframework.boot.actuate.endpoint.mvc.HalBrowserEndpoint;
+import org.springframework.boot.actuate.endpoint.mvc.ActuatorHalBrowserEndpoint;
+import org.springframework.boot.actuate.endpoint.mvc.ActuatorHalJsonEndpoint;
 import org.springframework.boot.actuate.endpoint.mvc.HypermediaDisabled;
-import org.springframework.boot.actuate.endpoint.mvc.LinksMvcEndpoint;
 import org.springframework.boot.actuate.endpoint.mvc.MvcEndpoint;
 import org.springframework.boot.actuate.endpoint.mvc.MvcEndpoints;
-import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnResource;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.autoconfigure.web.HttpMessageConverters;
 import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
-import org.springframework.boot.bind.RelaxedPropertyResolver;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ConditionContext;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.core.env.Environment;
-import org.springframework.core.type.AnnotatedTypeMetadata;
-import org.springframework.core.type.MethodMetadata;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.Resource;
 import org.springframework.hateoas.ResourceSupport;
@@ -67,8 +57,6 @@ import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.util.TypeUtils;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.servlet.HandlerMapping;
@@ -87,6 +75,8 @@ import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
  * Configuration for hypermedia in HTTP endpoints.
  *
  * @author Dave Syer
+ * @author Phillip Webb
+ * @author Andy Wilkinson
  * @since 1.3.0
  */
 @ManagementContextConfiguration
@@ -97,18 +87,19 @@ import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
 @EnableConfigurationProperties(ResourceProperties.class)
 public class EndpointWebMvcHypermediaManagementContextConfiguration {
 
+	@ConditionalOnProperty(prefix = "endpoints.actuator", name = "enabled", matchIfMissing = true)
 	@Bean
-	@ConditionalOnProperty(value = "endpoints.hal.enabled", matchIfMissing = true)
-	@ConditionalOnResource(resources = "classpath:/META-INF/resources/webjars/hal-browser/b7669f1-1")
-	@Conditional(MissingSpringDataRestResourceCondition.class)
-	public HalBrowserEndpoint halBrowserMvcEndpoint(
-			ManagementServerProperties management, ResourceProperties resources) {
-		return new HalBrowserEndpoint(management,
-				resources.getWelcomePage() != null ? "/hal" : "");
+	public ActuatorHalJsonEndpoint actuatorMvcEndpoint(
+			ManagementServerProperties management, ResourceProperties resources,
+			ResourceLoader resourceLoader) {
+		if (ActuatorHalBrowserEndpoint.getHalBrowserLocation(resourceLoader) != null) {
+			return new ActuatorHalBrowserEndpoint(management);
+		}
+		return new ActuatorHalJsonEndpoint(management);
 	}
 
 	@Bean
-	@ConditionalOnProperty(value = "endpoints.docs.enabled", matchIfMissing = true)
+	@ConditionalOnProperty(prefix = "endpoints.docs", name = "enabled", matchIfMissing = true)
 	@ConditionalOnResource(resources = "classpath:/META-INF/resources/spring-boot-actuator/docs/index.html")
 	public ActuatorDocsEndpoint actuatorDocsEndpoint(ManagementServerProperties management) {
 		return new ActuatorDocsEndpoint(management);
@@ -117,7 +108,7 @@ public class EndpointWebMvcHypermediaManagementContextConfiguration {
 	@Bean
 	@ConditionalOnBean(ActuatorDocsEndpoint.class)
 	@ConditionalOnMissingBean(CurieProvider.class)
-	@ConditionalOnProperty(value = "endpoints.docs.curies.enabled", matchIfMissing = false)
+	@ConditionalOnProperty(prefix = "endpoints.docs.curies", name = "enabled", matchIfMissing = false)
 	public DefaultCurieProvider curieProvider(ServerProperties server,
 			ManagementServerProperties management, ActuatorDocsEndpoint endpoint) {
 		String path = management.getContextPath() + endpoint.getPath()
@@ -129,319 +120,174 @@ public class EndpointWebMvcHypermediaManagementContextConfiguration {
 		return new DefaultCurieProvider("boot", new UriTemplate(path));
 	}
 
+	@ConditionalOnProperty(prefix = "endpoints.actuator", name = "enabled", matchIfMissing = true)
+	@Configuration
+	static class ActuatorMvcEndpointConfiguration {
+
+	}
+
 	/**
-	 * {@link SpringBootCondition} to detect the Spring Data REST HAL browser.
+	 * Controller advice that adds links to the actuator endpoint's path.
 	 */
-	@Configuration("EndpointHypermediaAutoConfiguration.MissingResourceCondition")
-	@ConditionalOnResource(resources = "classpath:/META-INF/spring-data-rest/hal-browser/index.html")
-	protected static class MissingSpringDataRestResourceCondition extends
-			SpringBootCondition {
+	@ControllerAdvice
+	public static class ActuatorEndpointLinksAdvice implements ResponseBodyAdvice<Object> {
+
+		@Autowired
+		private MvcEndpoints endpoints;
+
+		@Autowired(required = false)
+		private ActuatorHalJsonEndpoint actuatorEndpoint;
+
+		@Autowired
+		private ManagementServerProperties management;
+
+		private LinksEnhancer linksEnhancer;
+
+		@PostConstruct
+		public void init() {
+			this.linksEnhancer = new LinksEnhancer(this.management.getContextPath(),
+					this.endpoints);
+		}
 
 		@Override
-		public ConditionOutcome getMatchOutcome(ConditionContext context,
-				AnnotatedTypeMetadata metadata) {
-			if (context.getRegistry().containsBeanDefinition(
-					"EndpointHypermediaAutoConfiguration.MissingResourceCondition")) {
-				return ConditionOutcome.noMatch("Spring Data REST HAL browser found");
-			}
-			return ConditionOutcome.match("Spring Data REST HAL browser not found");
+		public boolean supports(MethodParameter returnType,
+				Class<? extends HttpMessageConverter<?>> converterType) {
+			returnType.increaseNestingLevel();
+			Type nestedType = returnType.getNestedGenericParameterType();
+			returnType.decreaseNestingLevel();
+			return ResourceSupport.class.isAssignableFrom(returnType.getParameterType())
+					|| TypeUtils.isAssignable(ResourceSupport.class, nestedType);
+		}
 
+		@Override
+		public Object beforeBodyWrite(Object body, MethodParameter returnType,
+				MediaType selectedContentType,
+				Class<? extends HttpMessageConverter<?>> selectedConverterType,
+				ServerHttpRequest request, ServerHttpResponse response) {
+			if (request instanceof ServletServerHttpRequest) {
+				beforeBodyWrite(body, (ServletServerHttpRequest) request);
+			}
+			return body;
+		}
+
+		private void beforeBodyWrite(Object body, ServletServerHttpRequest request) {
+			Object pattern = request.getServletRequest().getAttribute(
+					HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+			if (pattern != null && body instanceof ResourceSupport) {
+				beforeBodyWrite(pattern.toString(), (ResourceSupport) body);
+			}
+		}
+
+		private void beforeBodyWrite(String path, ResourceSupport body) {
+			if (isActuatorEndpointPath(path)) {
+				this.linksEnhancer
+						.addEndpointLinks(body, this.actuatorEndpoint.getPath());
+			}
+		}
+
+		private boolean isActuatorEndpointPath(String path) {
+			return this.actuatorEndpoint != null
+					&& (this.management.getContextPath() + this.actuatorEndpoint
+							.getPath()).equals(path);
 		}
 
 	}
 
 	/**
-	 * Configuration for Endpoint links.
+	 * Controller advice that adds links to the existing Actuator endpoints. By default
+	 * all the top-level resources are enhanced with a "self" link. Those resources that
+	 * could not be enhanced (e.g. "/env/{name}") because their values are "primitive" are
+	 * ignored. Those that have values of type Collection (e.g. /trace) are transformed in
+	 * to maps, and the original collection value is added with a key equal to the
+	 * endpoint name.
 	 */
-	@ConditionalOnProperty(value = "endpoints.links.enabled", matchIfMissing = true)
-	public static class LinksConfiguration {
+	@ControllerAdvice(assignableTypes = MvcEndpoint.class)
+	public static class MvcEndpointAdvice implements ResponseBodyAdvice<Object> {
 
-		@Bean
-		@Conditional(NotSpringDataRestHomePageCondition.class)
-		public LinksMvcEndpoint linksMvcEndpoint(ResourceProperties resources) {
-			String defaultPath = getDefaultPath(resources);
-			return new LinksMvcEndpoint(defaultPath);
+		@Autowired
+		private ManagementServerProperties management;
+
+		@Autowired
+		private HttpMessageConverters converters;
+
+		private Map<MediaType, HttpMessageConverter<?>> converterCache = new ConcurrentHashMap<MediaType, HttpMessageConverter<?>>();
+
+		@Autowired
+		private ObjectMapper mapper;
+
+		@Override
+		public boolean supports(MethodParameter returnType,
+				Class<? extends HttpMessageConverter<?>> converterType) {
+			Class<?> controllerType = returnType.getDeclaringClass();
+			return !ActuatorHalJsonEndpoint.class.isAssignableFrom(controllerType);
 		}
 
-		private String getDefaultPath(ResourceProperties resources) {
-			return resources.getWelcomePage() != null ? "/links" : "";
+		@Override
+		public Object beforeBodyWrite(Object body, MethodParameter returnType,
+				MediaType selectedContentType,
+				Class<? extends HttpMessageConverter<?>> selectedConverterType,
+				ServerHttpRequest request, ServerHttpResponse response) {
+			if (request instanceof ServletServerHttpRequest) {
+				return beforeBodyWrite(body, returnType, selectedContentType,
+						selectedConverterType, (ServletServerHttpRequest) request,
+						response);
+			}
+			return body;
 		}
 
-		private static class NotSpringDataRestHomePageCondition extends
-				SpringBootCondition {
-
-			private static final String REST_CONFIGURATION_CLASS = "org.springframework."
-					+ "data.rest.core.config.RepositoryRestConfiguration";
-
-			@Override
-			public ConditionOutcome getMatchOutcome(ConditionContext context,
-					AnnotatedTypeMetadata metadata) {
-				if (!ClassUtils.isPresent(REST_CONFIGURATION_CLASS, null)) {
-					return ConditionOutcome.match("Spring Data REST is not present");
-				}
-				return getMatchOutcome(context,
-						ClassUtils.resolveClassName(REST_CONFIGURATION_CLASS, null));
-			}
-
-			private ConditionOutcome getMatchOutcome(ConditionContext context,
-					Class<?> configurationClass) {
-				ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-				if (beanFactory.getBeanNamesForType(configurationClass, true, false).length == 0) {
-					return ConditionOutcome.match("Spring Data REST is not configured");
-				}
-				Environment environment = context.getEnvironment();
-				String path = getManagementContextPath(beanFactory, environment);
-				if (isHome(path)) {
-					path = getProperty(environment, "endpoints.links.", "path");
-					if (isHome(path)) {
-						return ConditionOutcome.noMatch("Management context path "
-								+ "is home and so is links path");
-					}
-					return ConditionOutcome.match("Management context path "
-							+ "is home but links path is not: '" + path + "'");
-				}
-				// N.B. we don't cover the case where the user has Spring Data REST
-				// but changes *its* home page - you'd have to instantiate the
-				// RepositoryRestConfiguration and look at it's basePath for that.
-				return ConditionOutcome.match("Management context path "
-						+ "is not home: '" + path + "'");
-			}
-
-			private String getManagementContextPath(
-					ConfigurableListableBeanFactory beanFactory, Environment environment) {
-				String path = getProperty(environment, "management.", "contextPath");
-				if (path == null
-						&& hasCustomBeanDefinition(beanFactory,
-								ManagementServerProperties.class,
-								ManagementServerPropertiesAutoConfiguration.class)) {
-					path = beanFactory.getBean(ManagementServerProperties.class)
-							.getContextPath();
-				}
-				return path;
-			}
-
-			private boolean isHome(String path) {
-				return path == null || "".equals(path) || "/".equals(path);
-			}
-
-			private String getProperty(Environment environment, String prefix, String name) {
-				RelaxedPropertyResolver resolver = new RelaxedPropertyResolver(
-						environment, prefix);
-				return resolver.getProperty(name, String.class);
-			}
-
-			private <T> boolean hasCustomBeanDefinition(
-					ConfigurableListableBeanFactory beanFactory, Class<T> type,
-					Class<?> configClass) {
-				String[] names = beanFactory.getBeanNamesForType(type, true, false);
-				if (names == null || names.length != 1) {
-					return false;
-				}
-				BeanDefinition definition = beanFactory.getBeanDefinition(names[0]);
-				if (definition instanceof AnnotatedBeanDefinition) {
-					MethodMetadata factoryMethodMetadata = ((AnnotatedBeanDefinition) definition)
-							.getFactoryMethodMetadata();
-					if (factoryMethodMetadata != null) {
-						String className = factoryMethodMetadata.getDeclaringClassName();
-						return !configClass.getName().equals(className);
-					}
-				}
-				return true;
-			}
-
-		}
-
-		/**
-		 * Controller advice that adds links to the home page and/or the management
-		 * context path. The home page is enhanced if it is composed already of a
-		 * {@link ResourceSupport} (e.g. when using Spring Data REST).
-		 */
-		@ControllerAdvice
-		public static class HomePageLinksAdvice implements ResponseBodyAdvice<Object> {
-
-			@Autowired
-			private MvcEndpoints endpoints;
-
-			@Autowired(required = false)
-			private LinksMvcEndpoint linksEndpoint;
-
-			@Autowired
-			private ManagementServerProperties management;
-
-			private LinksEnhancer linksEnhancer;
-
-			@PostConstruct
-			public void init() {
-				this.linksEnhancer = new LinksEnhancer(this.management.getContextPath(),
-						this.endpoints);
-			}
-
-			@Override
-			public boolean supports(MethodParameter returnType,
-					Class<? extends HttpMessageConverter<?>> converterType) {
-				Class<?> controllerType = returnType.getDeclaringClass();
-				if (!LinksMvcEndpoint.class.isAssignableFrom(controllerType)
-						&& MvcEndpoint.class.isAssignableFrom(controllerType)) {
-					return false;
-				}
-				returnType.increaseNestingLevel();
-				Type nestedType = returnType.getNestedGenericParameterType();
-				returnType.decreaseNestingLevel();
-				return ResourceSupport.class.isAssignableFrom(returnType
-						.getParameterType())
-						|| TypeUtils.isAssignable(ResourceSupport.class, nestedType);
-			}
-
-			@Override
-			public Object beforeBodyWrite(Object body, MethodParameter returnType,
-					MediaType selectedContentType,
-					Class<? extends HttpMessageConverter<?>> selectedConverterType,
-					ServerHttpRequest request, ServerHttpResponse response) {
-				if (request instanceof ServletServerHttpRequest) {
-					beforeBodyWrite(body, (ServletServerHttpRequest) request);
-				}
+		private Object beforeBodyWrite(Object body, MethodParameter returnType,
+				MediaType selectedContentType,
+				Class<? extends HttpMessageConverter<?>> selectedConverterType,
+				ServletServerHttpRequest request, ServerHttpResponse response) {
+			if (body == null || body instanceof Resource) {
+				// Assume it already was handled or it already has its links
 				return body;
 			}
-
-			private void beforeBodyWrite(Object body, ServletServerHttpRequest request) {
-				Object pattern = request.getServletRequest().getAttribute(
-						HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-				if (pattern != null) {
-					String path = pattern.toString();
-					if (isHomePage(path) || isManagementPath(path) || isLinksPath(path)) {
-						ResourceSupport resource = (ResourceSupport) body;
-						if (isHomePage(path) && hasManagementPath()) {
-							String rel = this.management.getContextPath().substring(1);
-							resource.add(linkTo(
-									EndpointWebMvcHypermediaManagementContextConfiguration.class)
-									.slash(this.management.getContextPath()).withRel(rel));
-						}
-						else {
-							this.linksEnhancer.addEndpointLinks(resource, "");
-						}
-					}
-				}
-			}
-
-			private boolean hasManagementPath() {
-				return StringUtils.hasText(this.management.getContextPath());
-			}
-
-			private boolean isManagementPath(String path) {
-				return this.management.getContextPath().equals(path);
-			}
-
-			private boolean isLinksPath(String path) {
-				return this.linksEndpoint != null
-						&& (this.management.getContextPath() + this.linksEndpoint
-								.getPath()).equals(path);
-			}
-
-			private boolean isHomePage(String path) {
-				return "".equals(path) || "/".equals(path);
-			}
-
-		}
-
-		/**
-		 * Controller advice that adds links to the existing Actuator endpoints. By
-		 * default all the top-level resources are enhanced with a "self" link. Those
-		 * resources that could not be enhanced (e.g. "/env/{name}") because their values
-		 * are "primitive" are ignored. Those that have values of type Collection (e.g.
-		 * /trace) are transformed in to maps, and the original collection value is added
-		 * with a key equal to the endpoint name.
-		 */
-		@ControllerAdvice(assignableTypes = MvcEndpoint.class)
-		public static class MvcEndpointAdvice implements ResponseBodyAdvice<Object> {
-
-			@Autowired
-			private ManagementServerProperties management;
-
-			@Autowired
-			private HttpMessageConverters converters;
-
-			private Map<MediaType, HttpMessageConverter<?>> converterCache = new ConcurrentHashMap<MediaType, HttpMessageConverter<?>>();
-
-			@Autowired
-			private ObjectMapper mapper;
-
-			@Override
-			public boolean supports(MethodParameter returnType,
-					Class<? extends HttpMessageConverter<?>> converterType) {
-				Class<?> controllerType = returnType.getDeclaringClass();
-				return !LinksMvcEndpoint.class.isAssignableFrom(controllerType)
-						&& !HalBrowserEndpoint.class.isAssignableFrom(controllerType);
-			}
-
-			@Override
-			public Object beforeBodyWrite(Object body, MethodParameter returnType,
-					MediaType selectedContentType,
-					Class<? extends HttpMessageConverter<?>> selectedConverterType,
-					ServerHttpRequest request, ServerHttpResponse response) {
-				if (request instanceof ServletServerHttpRequest) {
-					return beforeBodyWrite(body, returnType, selectedContentType,
-							selectedConverterType, (ServletServerHttpRequest) request,
-							response);
-				}
+			HttpMessageConverter<Object> converter = findConverter(selectedConverterType,
+					selectedContentType);
+			if (converter == null || isHypermediaDisabled(returnType)) {
+				// Not a resource that can be enhanced with a link
 				return body;
 			}
-
-			private Object beforeBodyWrite(Object body, MethodParameter returnType,
-					MediaType selectedContentType,
-					Class<? extends HttpMessageConverter<?>> selectedConverterType,
-					ServletServerHttpRequest request, ServerHttpResponse response) {
-				if (body == null || body instanceof Resource) {
-					// Assume it already was handled or it already has its links
-					return body;
-				}
-				HttpMessageConverter<Object> converter = findConverter(
-						selectedConverterType, selectedContentType);
-				if (converter == null || isHypermediaDisabled(returnType)) {
-					// Not a resource that can be enhanced with a link
-					return body;
-				}
-				String path = getPath(request);
-				try {
-					converter.write(new EndpointResource(body, path),
-							selectedContentType, response);
-				}
-				catch (IOException ex) {
-					throw new HttpMessageNotWritableException("Cannot write response", ex);
-				}
-				return null;
+			String path = getPath(request);
+			try {
+				converter.write(new EndpointResource(body, path), selectedContentType,
+						response);
 			}
+			catch (IOException ex) {
+				throw new HttpMessageNotWritableException("Cannot write response", ex);
+			}
+			return null;
+		}
 
-			@SuppressWarnings("unchecked")
-			private HttpMessageConverter<Object> findConverter(
-					Class<? extends HttpMessageConverter<?>> selectedConverterType,
-					MediaType mediaType) {
-				if (this.converterCache.containsKey(mediaType)) {
-					return (HttpMessageConverter<Object>) this.converterCache
-							.get(mediaType);
+		@SuppressWarnings("unchecked")
+		private HttpMessageConverter<Object> findConverter(
+				Class<? extends HttpMessageConverter<?>> selectedConverterType,
+				MediaType mediaType) {
+			if (this.converterCache.containsKey(mediaType)) {
+				return (HttpMessageConverter<Object>) this.converterCache.get(mediaType);
+			}
+			for (HttpMessageConverter<?> converter : this.converters) {
+				if (selectedConverterType.isAssignableFrom(converter.getClass())
+						&& converter.canWrite(EndpointResource.class, mediaType)) {
+					this.converterCache.put(mediaType, converter);
+					return (HttpMessageConverter<Object>) converter;
 				}
-				for (HttpMessageConverter<?> converter : this.converters) {
-					if (selectedConverterType.isAssignableFrom(converter.getClass())
-							&& converter.canWrite(EndpointResource.class, mediaType)) {
-						this.converterCache.put(mediaType, converter);
-						return (HttpMessageConverter<Object>) converter;
-					}
-				}
-				return null;
 			}
+			return null;
+		}
 
-			private boolean isHypermediaDisabled(MethodParameter returnType) {
-				return AnnotationUtils.findAnnotation(returnType.getMethod(),
-						HypermediaDisabled.class) != null
-						|| AnnotationUtils.findAnnotation(returnType.getMethod()
-								.getDeclaringClass(), HypermediaDisabled.class) != null;
-			}
+		private boolean isHypermediaDisabled(MethodParameter returnType) {
+			return AnnotationUtils.findAnnotation(returnType.getMethod(),
+					HypermediaDisabled.class) != null
+					|| AnnotationUtils.findAnnotation(returnType.getMethod()
+							.getDeclaringClass(), HypermediaDisabled.class) != null;
+		}
 
-			private String getPath(ServletServerHttpRequest request) {
-				String path = (String) request.getServletRequest().getAttribute(
-						HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-				return (path == null ? "" : path);
-			}
-
+		private String getPath(ServletServerHttpRequest request) {
+			String path = (String) request.getServletRequest().getAttribute(
+					HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+			return (path == null ? "" : path);
 		}
 
 	}

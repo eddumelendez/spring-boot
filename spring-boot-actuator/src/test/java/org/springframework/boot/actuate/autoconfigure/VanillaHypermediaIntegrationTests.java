@@ -20,8 +20,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.autoconfigure.VanillaHypermediaIntegrationTests.SpringBootHypermediaApplication;
+import org.springframework.boot.actuate.endpoint.mvc.ActuatorHalBrowserEndpoint;
 import org.springframework.boot.actuate.endpoint.mvc.MvcEndpoint;
 import org.springframework.boot.actuate.endpoint.mvc.MvcEndpoints;
 import org.springframework.boot.test.SpringApplicationConfiguration;
@@ -41,6 +41,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Integration tests for {@link ActuatorHalBrowserEndpoint}
+ *
+ * @author Dave Syer
+ * @author Andy Wilkinson
+ */
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringApplicationConfiguration(classes = SpringBootHypermediaApplication.class)
 @WebAppConfiguration
@@ -62,16 +68,17 @@ public class VanillaHypermediaIntegrationTests {
 
 	@Test
 	public void links() throws Exception {
-		this.mockMvc.perform(get("/").accept(MediaType.APPLICATION_JSON))
+		this.mockMvc.perform(get("/actuator").accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk()).andExpect(jsonPath("$._links").exists())
 				.andExpect(header().doesNotExist("cache-control"));
 	}
 
 	@Test
 	public void browser() throws Exception {
-		MvcResult response = this.mockMvc.perform(get("/").accept(MediaType.TEXT_HTML))
+		MvcResult response = this.mockMvc
+				.perform(get("/actuator/").accept(MediaType.TEXT_HTML))
 				.andExpect(status().isOk()).andReturn();
-		assertEquals("/browser.html", response.getResponse().getForwardedUrl());
+		assertEquals("/actuator/browser.html", response.getResponse().getForwardedUrl());
 	}
 
 	@Test
@@ -94,8 +101,11 @@ public class VanillaHypermediaIntegrationTests {
 	public void endpointsAllListed() throws Exception {
 		for (MvcEndpoint endpoint : this.mvcEndpoints.getEndpoints()) {
 			String path = endpoint.getPath();
+			if ("/actuator".equals(path)) {
+				continue;
+			}
 			path = path.startsWith("/") ? path.substring(1) : path;
-			this.mockMvc.perform(get("/").accept(MediaType.APPLICATION_JSON))
+			this.mockMvc.perform(get("/actuator").accept(MediaType.APPLICATION_JSON))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$._links.%s.href", path).exists());
 		}
@@ -105,10 +115,6 @@ public class VanillaHypermediaIntegrationTests {
 	public void endpointsEachHaveSelf() throws Exception {
 		for (MvcEndpoint endpoint : this.mvcEndpoints.getEndpoints()) {
 			String path = endpoint.getPath();
-			if ("/hal".equals(path) || "/logfile".equals(path)) {
-				// TODO: /logfile shouldn't be active anyway
-				continue;
-			}
 			path = path.length() > 0 ? path : "/";
 			this.mockMvc
 					.perform(get(path).accept(MediaType.APPLICATION_JSON))
@@ -122,10 +128,6 @@ public class VanillaHypermediaIntegrationTests {
 	@MinimalActuatorHypermediaApplication
 	@Configuration
 	public static class SpringBootHypermediaApplication {
-
-		public static void main(String[] args) {
-			SpringApplication.run(SpringBootHypermediaApplication.class, args);
-		}
 
 	}
 

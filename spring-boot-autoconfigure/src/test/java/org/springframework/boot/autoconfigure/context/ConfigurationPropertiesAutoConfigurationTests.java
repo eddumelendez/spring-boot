@@ -18,10 +18,11 @@ package org.springframework.boot.autoconfigure.context;
 
 import org.junit.After;
 import org.junit.Test;
-
+import org.springframework.boot.autoconfigure.test.ImportAutoConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.test.EnvironmentTestUtils;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 import static org.hamcrest.core.Is.is;
@@ -45,29 +46,32 @@ public class ConfigurationPropertiesAutoConfigurationTests {
 
 	@Test
 	public void processAnnotatedBean() {
-		load(new Class[] {SampleBean.class, ConfigurationPropertiesAutoConfiguration.class},
-				"foo.name:test");
+		load(new Class[] { AutoConfig.class, SampleBean.class }, "foo.name:test");
 		assertThat(this.context.getBean(SampleBean.class).getName(), is("test"));
 	}
 
 	@Test
 	public void processAnnotatedBeanNoAutoConfig() {
-		load(new Class[] {SampleBean.class}, "foo.name:test");
+		load(new Class[] { SampleBean.class }, "foo.name:test");
 		assertThat(this.context.getBean(SampleBean.class).getName(), is("default"));
 	}
 
-	private void load(Class<?>[] configs,
-			String... environment) {
+	private void load(Class<?>[] configs, String... environment) {
 		this.context = new AnnotationConfigApplicationContext();
 		this.context.register(configs);
 		EnvironmentTestUtils.addEnvironment(this.context, environment);
 		this.context.refresh();
 	}
 
+	@Configuration
+	@ImportAutoConfiguration(ConfigurationPropertiesAutoConfiguration.class)
+	static class AutoConfig {
+
+	}
 
 	@Component
 	@ConfigurationProperties("foo")
-	private static class SampleBean {
+	static class SampleBean {
 
 		private String name = "default";
 

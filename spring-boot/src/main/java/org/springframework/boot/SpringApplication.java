@@ -191,7 +191,7 @@ public class SpringApplication {
 
 	private Map<String, Object> defaultProperties;
 
-	private Set<String> profiles = new HashSet<String>();
+	private Set<String> additionalProfiles = new HashSet<String>();
 
 	/**
 	 * Create a new {@link SpringApplication} instance. The application context will load
@@ -450,17 +450,17 @@ public class SpringApplication {
 
 	/**
 	 * Configure which profiles are active (or active by default) for this application
-	 * environment. Consider overriding this method to programmatically enforce profile
-	 * rules and semantics, such as ensuring mutual exclusivity of profiles (e.g. 'dev' OR
-	 * 'prod', but never both).
+	 * environment. Additional profiles may be activated during configuration file
+	 * processing via the {@code spring.profiles.active} property.
 	 * @param environment this application's environment
 	 * @param args arguments passed to the {@code run} method
 	 * @see #configureEnvironment(ConfigurableEnvironment, String[])
+	 * @see org.springframework.boot.context.config.ConfigFileApplicationListener
 	 */
 	protected void configureProfiles(ConfigurableEnvironment environment, String[] args) {
 		environment.getActiveProfiles(); // ensure they are initialized
 		// But these ones should go first (last wins in a property key clash)
-		Set<String> profiles = new LinkedHashSet<String>(this.profiles);
+		Set<String> profiles = new LinkedHashSet<String>(this.additionalProfiles);
 		profiles.addAll(Arrays.asList(environment.getActiveProfiles()));
 		environment.setActiveProfiles(profiles.toArray(new String[profiles.size()]));
 	}
@@ -822,7 +822,7 @@ public class SpringApplication {
 	 * @param profiles the additional profiles to set
 	 */
 	public void setAdditionalProfiles(String... profiles) {
-		this.profiles = new LinkedHashSet<String>(Arrays.asList(profiles));
+		this.additionalProfiles = new LinkedHashSet<String>(Arrays.asList(profiles));
 	}
 
 	/**

@@ -50,10 +50,10 @@ rules of thumb:
   properties, thus `ServerProperties` has `prefix="server"` and its configuration properties
   are `server.port`, `server.address` etc. In a running Actuator app look at the
   `configprops` endpoint.
-* Look for use of `RelaxedEnvironment` to pull configuration values explicitly out of the
+* Look for use of `RelaxedPropertyResolver` to pull configuration values explicitly out of the
   `Environment`. It often is used with a prefix.
 * Look for `@Value` annotations that bind directly to the `Environment`. This is less
-  flexible than the `RelaxedEnvironment` approach, but does allow some relaxed binding,
+  flexible than the `RelaxedPropertyResolver` approach, but does allow some relaxed binding,
   specifically for OS environment variables (so `CAPITALS_AND_UNDERSCORES` are synonyms
   for `period.separated`).
 * Look for `@ConditionalOnExpression` annotations that switch features on and off in
@@ -169,8 +169,8 @@ application sources. Classes passed to the `SpringApplication` static convenienc
 methods, and those added using `setSources()` are inspected to see if they have
 `@PropertySources`, and if they do, those properties are added to the `Environment` early
 enough to be used in all phases of the `ApplicationContext` lifecycle. Properties added
-in this way have precedence over any added using the default locations, but have lower
-priority than system properties, environment variables or the command line.
+in this way have lower
+priority than any added using the default locations (e.g. `application.properties), system properties, environment variables or the command line.
 
 You can also provide System properties (or environment variables) to change the behavior:
 
@@ -257,7 +257,7 @@ about YAML.
 
 [[howto-set-active-spring-profiles]]
 === Set the active Spring profiles
-The Spring `Environment` has an API for this, but normally you would set a System profile
+The Spring `Environment` has an API for this, but normally you would set a System property
 (`spring.profiles.active`) or an OS environment variable (`SPRING_PROFILES_ACTIVE`). E.g.
 launch your application with a `-D` argument (remember to put it before the main class
 or jar archive):
@@ -339,7 +339,7 @@ The appendix includes an <<appendix-application-properties#common-application-pr
 `application.properties`>> example with a list of the most common properties supported by
 Spring Boot. The definitive list comes from searching the source code for
 `@ConfigurationProperties` and `@Value` annotations, as well as the occasional use of
-`RelaxedEnvironment`.
+`RelaxedPropertyResolver`.
 
 
 
@@ -1175,8 +1175,9 @@ using the "logging.config" property.
 
 [[howto-configure-logback-for-loggin]]
 === Configure Logback for logging
-If you put a `logback-spring.xml` in the root of your classpath it will be picked up from
-there. Spring Boot provides a default base configuration that you can include if you just
+If you put a `logback.xml` in the root of your classpath it will be picked up from
+there 
+(or `logback-spring.xml` to take advantage of the templating features provided by Boot). Spring Boot provides a default base configuration that you can include if you just
 want to set levels, e.g.
 
 [source,xml,indent=0,subs="verbatim,quotes,attributes"]
@@ -1188,14 +1189,16 @@ want to set levels, e.g.
 	</configuration>
 ----
 
-If you look at the default `logback.xml` in the spring-boot jar you will see that it uses
+If you look at that `base.xml` in the spring-boot jar, you will see that it uses
 some useful System properties which the `LoggingSystem` takes care of creating for you.
 These are:
 
 * `${PID}` the current process ID.
 * `${LOG_FILE}` if `logging.file` was set in Boot's external configuration.
 * `${LOG_PATH}` if `logging.path` was set (representing a directory for
-	log files to live in).
+   log files to live in).
+* `${LOG_EXCEPTION_CONVERSION_WORD}` if `logging.exception-conversion-word` was set in
+   Boot's external configuration.
 
 Spring Boot also provides some nice ANSI colour terminal output on a console (but not in
 a log file) using a custom Logback converter. See the default `base.xml` configuration
@@ -1438,6 +1441,27 @@ be picked up by the default `JpaTransactionManager` in Spring Boot if you mark i
 `@Primary`. The other would have to be explicitly injected into a new instance. Or you
 might be able to use a JTA transaction manager spanning both.
 
+If you are using Spring Data, you need to configure `@EnableJpaRepositories` accordingly:
+
+[source,java,indent=0,subs="verbatim,quotes,attributes"]
+----
+
+	@Configuration
+	@EnableJpaRepositories(basePackageClasses = Customer.class,
+			entityManagerFactoryRef = "customerEntityManagerFactory")
+	public class CustomerConfiguration {
+		...
+	}
+
+	@Configuration
+	@EnableJpaRepositories(basePackageClasses = Order.class,
+			entityManagerFactoryRef = "orderEntityManagerFactory")
+	public class OrderConfiguration {
+		...
+	}
+
+
+----
 
 
 [[howto-use-traditional-persistence-xml]]

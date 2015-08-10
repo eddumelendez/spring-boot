@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2015 the original author or authors.
+ * Copyright 2012-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,61 @@
 
 package org.springframework.boot.actuate.endpoint.mvc;
 
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
+
+import org.springframework.boot.actuate.autoconfigure.ManagementServerProperties;
 import org.springframework.boot.actuate.endpoint.Endpoint;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.hateoas.ResourceSupport;
 import org.springframework.http.MediaType;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
 /**
- * {@link MvcEndpoint} to add hypermedia links.
+ * {@link MvcEndpoint} for the actuator. Uses content negotiation to provide access to the
+ * HAL browser (when on the classpath), and to HAL-formatted JSON.
  *
  * @author Dave Syer
- * @since 1.3.0
+ * @author Phil Webb
+ * @author Andy Wilkinson
  */
-@ConfigurationProperties("endpoints.links")
-public class LinksMvcEndpoint implements MvcEndpoint {
+@ConfigurationProperties("endpoints.actuator")
+public class ActuatorHalJsonEndpoint extends WebMvcConfigurerAdapter implements
+		MvcEndpoint {
 
+	/**
+	 * Endpoint URL path.
+	 */
+	@NotNull
+	@Pattern(regexp = "^$|/[^/]*", message = "Path must be empty or start with /")
 	private String path;
+
+	/**
+	 * Enable security on the endpoint.
+	 */
 	private boolean sensitive = false;
 
-	public LinksMvcEndpoint(String defaultPath) {
-		this.path = defaultPath;
+	/**
+	 * Enable the endpoint.
+	 */
+	private boolean enabled = true;
+
+	private final ManagementServerProperties management;
+
+	public ActuatorHalJsonEndpoint(ManagementServerProperties management) {
+		this.management = management;
+		if (StringUtils.hasText(management.getContextPath())) {
+			this.path = "";
+		}
+		else {
+			this.path = "/actuator";
+		}
 	}
 
-	@RequestMapping(value = { "/", "" }, produces = MediaType.APPLICATION_JSON_VALUE)
+	@RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
 	public ResourceSupport links() {
 		return new ResourceSupport();
@@ -63,9 +94,21 @@ public class LinksMvcEndpoint implements MvcEndpoint {
 		this.sensitive = sensitive;
 	}
 
+	public boolean isEnabled() {
+		return this.enabled;
+	}
+
+	public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+	}
+
 	@Override
 	public Class<? extends Endpoint<?>> getEndpointType() {
 		return null;
+	}
+
+	protected final ManagementServerProperties getManagement() {
+		return this.management;
 	}
 
 }

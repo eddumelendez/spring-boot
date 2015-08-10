@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.boot.actuate.hypermedia.test;
+package org.springframework.boot.actuate.hypermedia;
 
 import groovy.text.TemplateEngine;
 
@@ -82,7 +82,7 @@ public class HypermediaEndpointDocumentation {
 
 	@Test
 	public void home() throws Exception {
-		this.mockMvc.perform(get("/").accept(MediaType.APPLICATION_JSON))
+		this.mockMvc.perform(get("/actuator").accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk()).andDo(document("admin"));
 	}
 
