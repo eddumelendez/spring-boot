@@ -34,6 +34,7 @@ class CacheConfigurations {
 		Map<CacheType, Class<?>> mappings = new HashMap<CacheType, Class<?>>();
 		mappings.put(CacheType.GENERIC, GenericCacheConfiguration.class);
 		mappings.put(CacheType.EHCACHE, EhCacheCacheConfiguration.class);
+		mappings.put(CacheType.GEMFIRE, GemfireCacheConfiguration.class);
 		mappings.put(CacheType.HAZELCAST, HazelcastCacheConfiguration.class);
 		mappings.put(CacheType.INFINISPAN, InfinispanCacheConfiguration.class);
 		mappings.put(CacheType.JCACHE, JCacheCacheConfiguration.class);

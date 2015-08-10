@@ -46,6 +46,8 @@ public class CacheProperties {
 
 	private final EhCache ehcache = new EhCache();
 
+	private final Gemfire gemfire = new Gemfire();
+
 	private final Hazelcast hazelcast = new Hazelcast();
 
 	private final Infinispan infinispan = new Infinispan();
@@ -72,6 +74,10 @@ public class CacheProperties {
 
 	public EhCache getEhcache() {
 		return this.ehcache;
+	}
+
+	public Gemfire getGemfire() {
+		return this.gemfire;
 	}
 
 	public Hazelcast getHazelcast() {
@@ -113,6 +119,27 @@ public class CacheProperties {
 
 		/**
 		 * The location of the configuration file to use to initialize EhCache.
+		 */
+		private Resource config;
+
+		public Resource getConfig() {
+			return this.config;
+		}
+
+		public void setConfig(Resource config) {
+			this.config = config;
+		}
+
+	}
+
+
+	/**
+	 * Gemfire specific cache properties.
+	 */
+	public static class Gemfire {
+
+		/**
+		 * The location of the configuration file to use to initialize Gemfire.
 		 */
 		private Resource config;
 

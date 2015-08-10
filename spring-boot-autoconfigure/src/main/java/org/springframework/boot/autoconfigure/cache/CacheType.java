@@ -37,6 +37,11 @@ public enum CacheType {
 	EHCACHE,
 
 	/**
+	 * Gemfire backed caching.
+	 */
+	GEMFIRE,
+
+	/**
 	 * Hazelcast backed caching
 	 */
 	HAZELCAST,
