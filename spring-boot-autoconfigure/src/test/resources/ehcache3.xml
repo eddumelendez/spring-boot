@@ -1,0 +1,14 @@
+<ehcache:config
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:ehcache='http://www.ehcache.org/v3'>
+
+	<ehcache:cache alias="bar" storeByValueOnHeap="true">
+		<ehcache:key-type>
+			java.lang.Long
+		</ehcache:key-type>
+		<ehcache:value-type>java.lang.Double
+		</ehcache:value-type>
+		<ehcache:heap size="10"/>
+	</ehcache:cache>
+
+</ehcache:config>

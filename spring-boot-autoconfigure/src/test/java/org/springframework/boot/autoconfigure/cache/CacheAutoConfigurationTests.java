@@ -27,6 +27,7 @@ import javax.cache.expiry.Duration;
 
 import net.sf.ehcache.Status;
 
+import org.ehcache.jsr107.EhcacheCachingProvider;
 import org.infinispan.configuration.cache.ConfigurationBuilder;
 import org.infinispan.jcache.embedded.JCachingProvider;
 import org.infinispan.spring.provider.SpringEmbeddedCacheManager;
@@ -177,10 +178,8 @@ public class CacheAutoConfigurationTests {
 	public void genericCacheExplicitWithCaches() {
 		load(GenericCacheConfiguration.class, "spring.cache.type=generic");
 		SimpleCacheManager cacheManager = validateCacheManager(SimpleCacheManager.class);
-		assertThat(cacheManager.getCache("first"),
-				equalTo(this.context.getBean("firstCache")));
-		assertThat(cacheManager.getCache("second"),
-				equalTo(this.context.getBean("secondCache")));
+		assertThat(cacheManager.getCache("first"), equalTo(this.context.getBean("firstCache")));
+		assertThat(cacheManager.getCache("second"), equalTo(this.context.getBean("secondCache")));
 		assertThat(cacheManager.getCacheNames(), hasSize(2));
 	}
 
@@ -249,10 +248,8 @@ public class CacheAutoConfigurationTests {
 
 		CompleteConfiguration<?, ?> defaultCacheConfiguration = this.context
 				.getBean(CompleteConfiguration.class);
-		verify(cacheManager.getCacheManager()).createCache("one",
-				defaultCacheConfiguration);
-		verify(cacheManager.getCacheManager()).createCache("two",
-				defaultCacheConfiguration);
+		verify(cacheManager.getCacheManager()).createCache("one", defaultCacheConfiguration);
+		verify(cacheManager.getCacheManager()).createCache("two", defaultCacheConfiguration);
 	}
 
 	@Test
@@ -300,8 +297,7 @@ public class CacheAutoConfigurationTests {
 	public void ehCacheCacheWithCaches() {
 		load(DefaultCacheConfiguration.class, "spring.cache.type=ehcache");
 		EhCacheCacheManager cacheManager = validateCacheManager(EhCacheCacheManager.class);
-		assertThat(cacheManager.getCacheNames(),
-				containsInAnyOrder("cacheTest1", "cacheTest2"));
+		assertThat(cacheManager.getCacheNames(), containsInAnyOrder("cacheTest1", "cacheTest2"));
 		assertThat(cacheManager.getCacheNames(), hasSize(2));
 		assertThat(this.context.getBean(net.sf.ehcache.CacheManager.class),
 				is(cacheManager.getCacheManager()));
@@ -340,8 +336,7 @@ public class CacheAutoConfigurationTests {
 
 	@Test
 	public void hazelcastCacheWithConfig() {
-		load(DefaultCacheConfiguration.class,
-				"spring.cache.type=hazelcast",
+		load(DefaultCacheConfiguration.class, "spring.cache.type=hazelcast",
 				"spring.cache.hazelcast.config=org/springframework/boot/autoconfigure/cache/hazelcast-specific.xml");
 		HazelcastCacheManager cacheManager = validateCacheManager(HazelcastCacheManager.class);
 		cacheManager.getCache("foobar");
@@ -361,9 +356,7 @@ public class CacheAutoConfigurationTests {
 	public void hazelcastCacheWithExistingHazelcastInstance() {
 		load(HazelcastCustomHazelcastInstance.class, "spring.cache.type=hazelcast");
 		HazelcastCacheManager cacheManager = validateCacheManager(HazelcastCacheManager.class);
-		assertThat(
-				new DirectFieldAccessor(cacheManager)
-						.getPropertyValue("hazelcastInstance"),
+		assertThat(new DirectFieldAccessor(cacheManager).getPropertyValue("hazelcastInstance"),
 				is(this.context.getBean("customHazelcastInstance")));
 	}
 
@@ -481,6 +474,29 @@ public class CacheAutoConfigurationTests {
 		load(GuavaCacheBuilderConfiguration.class, "spring.cache.type=guava",
 				"spring.cache.cacheNames[0]=foo", "spring.cache.cacheNames[1]=bar");
 		validateGuavaCacheWithStats();
+	}
+
+	@Test
+	public void ehcache3AsJCacheWithCaches() {
+		String cachingProviderFqn = EhcacheCachingProvider.class.getName();
+		load(DefaultCacheConfiguration.class, "spring.cache.type=jcache",
+				"spring.cache.jcache.provider=" + cachingProviderFqn,
+				"spring.cache.cacheNames[0]=foo", "spring.cache.cacheNames[1]=bar");
+		JCacheCacheManager cacheManager = validateCacheManager(JCacheCacheManager.class);
+		assertThat(cacheManager.getCacheNames(), containsInAnyOrder("foo", "bar"));
+		assertThat(cacheManager.getCacheNames(), hasSize(2));
+	}
+
+	@Test
+	public void ehcache3AsJCacheWithConfig() throws IOException {
+		String cachingProviderFqn = EhcacheCachingProvider.class.getName();
+		String configLocation = "ehcache3.xml";
+		load(DefaultCacheConfiguration.class, "spring.cache.type=jcache",
+				"spring.cache.jcache.provider=" + cachingProviderFqn,
+				"spring.cache.jcache.config=" + configLocation);
+		JCacheCacheManager cacheManager = validateCacheManager(JCacheCacheManager.class);
+		Resource configResource = new ClassPathResource(configLocation);
+		assertThat(cacheManager.getCacheManager().getURI(), is(configResource.getURI()));
 	}
 
 	private void validateGuavaCacheWithStats() {

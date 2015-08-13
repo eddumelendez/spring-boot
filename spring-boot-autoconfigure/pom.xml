@@ -516,6 +516,11 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
+			<groupId>org.ehcache</groupId>
+			<artifactId>ehcache</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
 			<groupId>org.jooq</groupId>
 			<artifactId>jooq</artifactId>
 			<optional>true</optional>
