@@ -16,10 +16,29 @@
 
 package org.springframework.boot.actuate.autoconfigure;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import liquibase.integration.spring.SpringLiquibase;
 import org.flywaydb.core.Flyway;
+
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.actuate.endpoint.*;
+import org.springframework.boot.actuate.endpoint.AutoConfigurationReportEndpoint;
+import org.springframework.boot.actuate.endpoint.BeansEndpoint;
+import org.springframework.boot.actuate.endpoint.ConfigurationPropertiesReportEndpoint;
+import org.springframework.boot.actuate.endpoint.DumpEndpoint;
+import org.springframework.boot.actuate.endpoint.Endpoint;
+import org.springframework.boot.actuate.endpoint.EndpointProperties;
+import org.springframework.boot.actuate.endpoint.EnvironmentEndpoint;
+import org.springframework.boot.actuate.endpoint.FlywayEndpoint;
+import org.springframework.boot.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.actuate.endpoint.InfoEndpoint;
+import org.springframework.boot.actuate.endpoint.LiquibaseEndpoint;
+import org.springframework.boot.actuate.endpoint.LoggersEndpoint;
+import org.springframework.boot.actuate.endpoint.RequestMappingEndpoint;
+import org.springframework.boot.actuate.endpoint.ShutdownEndpoint;
+import org.springframework.boot.actuate.endpoint.TraceEndpoint;
 import org.springframework.boot.actuate.health.HealthAggregator;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.health.OrderedHealthAggregator;
@@ -28,7 +47,11 @@ import org.springframework.boot.actuate.trace.InMemoryTraceRepository;
 import org.springframework.boot.actuate.trace.TraceRepository;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.*;
+import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.SearchStrategy;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -36,10 +59,6 @@ import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.handler.AbstractHandlerMethodMapping;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for common management

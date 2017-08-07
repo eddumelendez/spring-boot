@@ -47,9 +47,13 @@
 		</dependency>
 		<!-- Optional -->
 		<dependency>
-			<groupId>io.prometheus</groupId>
-			<artifactId>simpleclient_common</artifactId>
-			<version>0.0.26</version>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-prometheus-starter</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-atlas-starter</artifactId>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -59,34 +63,12 @@
 		</dependency>
 		<dependency>
 			<groupId>com.netflix.spectator</groupId>
-			<artifactId>spectator-api</artifactId>
-			<version>0.57.1</version>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>com.netflix.spectator</groupId>
 			<artifactId>spectator-reg-atlas</artifactId>
-			<version>0.57.1</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.dataformat</groupId>
 			<artifactId>jackson-dataformat-xml</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>com.github.ben-manes.caffeine</groupId>
-			<artifactId>caffeine</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>com.hazelcast</groupId>
-			<artifactId>hazelcast</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>com.hazelcast</groupId>
-			<artifactId>hazelcast-spring</artifactId>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -110,11 +92,6 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
-			<groupId>javax.cache</groupId>
-			<artifactId>cache-api</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
 			<groupId>javax.jms</groupId>
 			<artifactId>javax.jms-api</artifactId>
 			<optional>true</optional>
@@ -122,11 +99,6 @@
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>javax.servlet-api</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>net.sf.ehcache</groupId>
-			<artifactId>ehcache</artifactId>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

@@ -68,7 +68,7 @@ class MetricsConfiguration {
 	@ConditionalOnProperty(value = "spring.aop.enabled", havingValue = "true", matchIfMissing = true)
 	public static class MetricsRestTemplateAspectConfiguration {
 		@Bean
-		RestTemplateUrlTemplateCapturingAspect restTemplateUrlTemplateCapturingAspect() {
+		public RestTemplateUrlTemplateCapturingAspect restTemplateUrlTemplateCapturingAspect() {
 			return new RestTemplateUrlTemplateCapturingAspect();
 		}
 	}
