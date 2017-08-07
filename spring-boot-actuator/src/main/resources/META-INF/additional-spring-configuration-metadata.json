@@ -64,12 +64,6 @@
     "description": "Endpoint URL path."
   },
   {
-    "name": "endpoints.metrics.filter.enabled",
-    "type": "java.lang.Boolean",
-    "description": "Enable the metrics servlet filter.",
-    "defaultValue": true
-  },
-  {
     "name": "endpoints.trace.path",
     "type": "java.lang.String",
     "description": "Endpoint URL path."
