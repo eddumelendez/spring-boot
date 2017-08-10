@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics.web;
+
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+
+import javax.servlet.http.HttpServletRequest;
 
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.Gauge;
@@ -25,11 +31,10 @@ import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.actuate.metrics.EnableMetrics;
 import org.springframework.boot.actuate.metrics.SpringBootTestApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -39,12 +44,13 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-
-import javax.servlet.http.HttpServletRequest;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -69,94 +75,101 @@ public class MetricsHandlerInterceptorTest {
 
 	@After
 	public void clearRegistry() {
-		registry.clear();
+		this.registry.clear();
 	}
 
 	@Test
 	public void timedMethod() throws Exception {
-		mvc.perform(get("/api/c1/10")).andExpect(status().isOk());
-		assertThat(registry.findMeter(Timer.class, "http_server_requests", "status",
-				"200", "uri", "/api/c1/{id}", "public", "true"))
-						.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
+		this.mvc.perform(get("/api/c1/10")).andExpect(status().isOk());
+		assertThat(
+				this.registry.findMeter(Timer.class, "http_server_requests", "status", "200",
+						"uri", "/api/c1/{id}", "public", "true")).hasValueSatisfying(
+				t -> assertThat(t.count()).isEqualTo(1));
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test
 	public void untimedMethod() throws Exception {
-		mvc.perform(get("/api/c1/untimed/10")).andExpect(status().isOk());
-		assertThat(registry.findMeter(Timer.class, "http_server_requests")).isEmpty();
+		this.mvc.perform(get("/api/c1/untimed/10")).andExpect(status().isOk());
+		assertThat(this.registry.findMeter(Timer.class, "http_server_requests")).isEmpty();
 	}
 
 	@Test
 	public void timedControllerClass() throws Exception {
-		mvc.perform(get("/api/c2/10")).andExpect(status().isOk());
+		this.mvc.perform(get("/api/c2/10")).andExpect(status().isOk());
 		assertThat(
-				registry.findMeter(Timer.class, "http_server_requests", "status", "200"))
-						.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
+				this.registry.findMeter(Timer.class, "http_server_requests", "status", "200"))
+				.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
 	}
 
 	@Test
 	public void badClientRequest() throws Exception {
-		mvc.perform(get("/api/c1/oops")).andExpect(status().is4xxClientError());
+		this.mvc.perform(get("/api/c1/oops")).andExpect(status().is4xxClientError());
 		assertThat(
-				registry.findMeter(Timer.class, "http_server_requests", "status", "400"))
-						.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
+				this.registry.findMeter(Timer.class, "http_server_requests", "status", "400"))
+				.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
 	}
 
 	@Test
 	public void unhandledError() throws Exception {
-		assertThatCode(() -> mvc.perform(get("/api/c1/unhandledError/10"))
-				.andExpect(status().isOk())).hasCauseInstanceOf(RuntimeException.class);
-		assertThat(registry.findMeter(Timer.class, "http_server_requests", "exception",
-				"RuntimeException"))
-						.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
+		assertThatCode(
+				() -> this.mvc.perform(get("/api/c1/unhandledError/10")).andExpect(
+						status().isOk())).hasCauseInstanceOf(RuntimeException.class);
+		assertThat(
+				this.registry.findMeter(Timer.class, "http_server_requests", "exception",
+						"RuntimeException")).hasValueSatisfying(
+				t -> assertThat(t.count()).isEqualTo(1));
 	}
 
 	@Test
 	public void longRunningRequest() throws Exception {
-		MvcResult result = mvc.perform(get("/api/c1/long/10"))
+		MvcResult result = this.mvc.perform(get("/api/c1/long/10"))
 				.andExpect(request().asyncStarted()).andReturn();
 
 		// while the mapping is running, it contributes to the activeTasks count
-		assertThat(registry.findMeter(LongTaskTimer.class, "my_long_request", "region",
-				"test")).hasValueSatisfying(
-						t -> assertThat(t.activeTasks()).isEqualTo(1));
+		assertThat(
+				this.registry.findMeter(LongTaskTimer.class, "my_long_request", "region",
+						"test")).hasValueSatisfying(
+				t -> assertThat(t.activeTasks()).isEqualTo(1));
 
 		// once the mapping completes, we can gather information about status, etc.
 		longRequestCountDown.countDown();
 
-		mvc.perform(asyncDispatch(result)).andExpect(status().isOk());
+		this.mvc.perform(asyncDispatch(result)).andExpect(status().isOk());
 
 		assertThat(
-				registry.findMeter(Timer.class, "http_server_requests", "status", "200"))
-						.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
+				this.registry.findMeter(Timer.class, "http_server_requests", "status", "200"))
+				.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
 	}
 
 	@Test
 	/* FIXME */
 	@Ignore("ErrorMvcAutoConfiguration is blowing up on SPEL evaluation of 'timestamp'")
 	public void endpointThrowsError() throws Exception {
-		mvc.perform(get("/api/c1/error/10")).andExpect(status().is4xxClientError());
+		this.mvc.perform(get("/api/c1/error/10")).andExpect(status().is4xxClientError());
 		assertThat(
-				registry.findMeter(Timer.class, "http_server_requests", "status", "422"))
-						.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
+				this.registry.findMeter(Timer.class, "http_server_requests", "status", "422"))
+				.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
 	}
 
 	@Test
 	public void regexBasedRequestMapping() throws Exception {
-		mvc.perform(get("/api/c1/regex/.abc")).andExpect(status().isOk());
-		assertThat(registry.findMeter(Timer.class, "http_server_requests", "uri",
-				"/api/c1/regex/{id:\\.[a-z]+}"))
-						.hasValueSatisfying(t -> assertThat(t.count()).isEqualTo(1));
+		this.mvc.perform(get("/api/c1/regex/.abc")).andExpect(status().isOk());
+		assertThat(
+				this.registry.findMeter(Timer.class, "http_server_requests", "uri",
+						"/api/c1/regex/{id:\\.[a-z]+}")).hasValueSatisfying(
+				t -> assertThat(t.count()).isEqualTo(1));
 	}
 
 	@Test
 	public void recordQuantiles() throws Exception {
-		mvc.perform(get("/api/c1/quantiles/10")).andExpect(status().isOk());
-		assertThat(registry.findMeter(Gauge.class, "http_server_requests.quantiles",
-				"quantile", "0.5")).isNotEmpty();
-		assertThat(registry.findMeter(Gauge.class, "http_server_requests.quantiles",
-				"quantile", "0.95")).isNotEmpty();
+		this.mvc.perform(get("/api/c1/quantiles/10")).andExpect(status().isOk());
+		assertThat(
+				this.registry.findMeter(Gauge.class, "http_server_requests.quantiles",
+						"quantile", "0.5")).isNotEmpty();
+		assertThat(
+				this.registry.findMeter(Gauge.class, "http_server_requests.quantiles",
+						"quantile", "0.95")).isNotEmpty();
 	}
 
 	@SpringBootTestApplication
@@ -178,10 +191,11 @@ public class MetricsHandlerInterceptorTest {
 			return id.toString();
 		}
 
-		@Timed // contains dimensions for status, etc. that can't be known until after the
-				// response is sent
-		@Timed(value = "my_long_request", extraTags = { "region",
-				"test" }, longTask = true) // in progress metric
+		@Timed
+		// contains dimensions for status, etc. that can't be known until after the
+		// response is sent
+		@Timed(value = "my_long_request", extraTags = { "region", "test" }, longTask = true)
+		// in progress metric
 		@GetMapping("/long/{id}")
 		public Callable<String> takesLongTimeToSatisfy(@PathVariable Long id) {
 			return () -> {

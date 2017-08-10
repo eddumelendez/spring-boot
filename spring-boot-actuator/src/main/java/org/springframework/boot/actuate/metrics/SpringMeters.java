@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,21 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics;
+
+import java.util.Arrays;
+import java.util.Collection;
+
+import javax.sql.DataSource;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Meters;
 import io.micrometer.core.instrument.Tag;
+
 import org.springframework.boot.actuate.metrics.binder.DataSourceMetrics;
 import org.springframework.boot.autoconfigure.jdbc.metadata.DataSourcePoolMetadataProvider;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
-import javax.sql.DataSource;
-import java.util.Collection;
-
-import static java.util.Arrays.asList;
-
+/**
+ * @author Jon Schneider
+ * @version 2.0.0
+ */
 public class SpringMeters {
 	/**
 	 * Record metrics on active connections and connection pool utilization.
@@ -63,7 +69,7 @@ public class SpringMeters {
 	public static DataSource monitor(MeterRegistry registry, DataSource dataSource,
 			Collection<DataSourcePoolMetadataProvider> metadataProviders, String name,
 			Tag... tags) {
-		return monitor(registry, dataSource, metadataProviders, name, asList(tags));
+		return monitor(registry, dataSource, metadataProviders, name, Arrays.asList(tags));
 	}
 
 	/**

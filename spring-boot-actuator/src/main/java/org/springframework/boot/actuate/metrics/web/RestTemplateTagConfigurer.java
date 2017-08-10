@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics.web;
 
+import java.io.IOException;
+import java.util.Arrays;
+
 import io.micrometer.core.instrument.Tag;
+
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
-
-import java.io.IOException;
-
-import static java.util.Arrays.asList;
 
 /**
  * Defines the default set of tags added to instrumented web requests. It is only
@@ -37,8 +38,7 @@ public class RestTemplateTagConfigurer {
 	 * @param response may be null in the event of a client error
 	 * @return a set of tags added to every client HTTP request metric
 	 */
-	Iterable<Tag> clientHttpRequestTags(HttpRequest request,
-			ClientHttpResponse response) {
+	Iterable<Tag> clientHttpRequestTags(HttpRequest request, ClientHttpResponse response) {
 		String urlTemplate = RestTemplateUrlTemplateHolder.getRestTemplateUrlTemplate();
 		if (urlTemplate == null) {
 			urlTemplate = "none";
@@ -46,8 +46,8 @@ public class RestTemplateTagConfigurer {
 
 		String status;
 		try {
-			status = (response == null) ? "CLIENT_ERROR"
-					: ((Integer) response.getRawStatusCode()).toString();
+			status = (response == null) ? "CLIENT_ERROR" : ((Integer) response
+					.getRawStatusCode()).toString();
 		}
 		catch (IOException e) {
 			status = "IO_ERROR";
@@ -60,7 +60,7 @@ public class RestTemplateTagConfigurer {
 
 		String strippedUrlTemplate = urlTemplate.replaceAll("^https?://[^/]+/", "");
 
-		return asList(Tag.of("method", request.getMethod().name()),
+		return Arrays.asList(Tag.of("method", request.getMethod().name()),
 				Tag.of("uri", strippedUrlTemplate), Tag.of("status", status),
 				Tag.of("clientName", host));
 	}

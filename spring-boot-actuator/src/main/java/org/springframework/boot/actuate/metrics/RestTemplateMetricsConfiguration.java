@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,11 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import io.micrometer.core.instrument.MeterRegistry;
+
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.actuate.metrics.web.MetricsRestTemplateInterceptor;
 import org.springframework.boot.actuate.metrics.web.RestTemplateTagConfigurer;
@@ -31,29 +36,30 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Configuration
 @ConditionalOnClass(name = "org.springframework.web.client.RestTemplate")
 class RestTemplateMetricsConfiguration {
-	@Autowired(required = false)
-	RestTemplateTagConfigurer tagConfigurer;
+
+	private final RestTemplateTagConfigurer tagConfigurer;
+
+	public RestTemplateMetricsConfiguration(
+			ObjectProvider<RestTemplateTagConfigurer> tagConfigurer) {
+		this.tagConfigurer = tagConfigurer.getIfAvailable();
+	}
 
 	@Bean
 	@ConditionalOnMissingBean(RestTemplateTagConfigurer.class)
 	public RestTemplateTagConfigurer restTemplateTagConfigurer() {
-		if (tagConfigurer != null)
-			return tagConfigurer;
-		this.tagConfigurer = new RestTemplateTagConfigurer();
-		return tagConfigurer;
+		if (this.tagConfigurer != null) {
+			return this.tagConfigurer;
+		}
+		return new RestTemplateTagConfigurer();
 	}
 
 	@Bean
 	public MetricsRestTemplateInterceptor clientHttpRequestInterceptor(
 			MeterRegistry meterRegistry,
-			RestTemplateTagConfigurer restTemplateTagConfigurer,
-			Environment environment) {
+			RestTemplateTagConfigurer restTemplateTagConfigurer, Environment environment) {
 		return new MetricsRestTemplateInterceptor(meterRegistry,
 				restTemplateTagConfigurer,
 				environment.getProperty("spring.metrics.web.client_requests.name",
@@ -65,8 +71,8 @@ class RestTemplateMetricsConfiguration {
 		return new MetricsInterceptorPostProcessor();
 	}
 
-	private static class MetricsInterceptorPostProcessor
-			implements BeanPostProcessor, ApplicationContextAware {
+	private static class MetricsInterceptorPostProcessor implements BeanPostProcessor,
+			ApplicationContextAware {
 		private ApplicationContext context;
 		private MetricsRestTemplateInterceptor interceptor;
 
@@ -86,7 +92,7 @@ class RestTemplateMetricsConfiguration {
 				// create a new list as the old one may be unmodifiable (ie
 				// Arrays.asList())
 				List<ClientHttpRequestInterceptor> interceptors = new ArrayList<>();
-				interceptors.add(interceptor);
+				interceptors.add(this.interceptor);
 				interceptors.addAll(restTemplate.getInterceptors());
 				restTemplate.setInterceptors(interceptors);
 			}

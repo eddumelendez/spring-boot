@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics.scheduling;
+
+import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.LongTaskTimer;
@@ -27,9 +31,6 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-
-import java.lang.reflect.Method;
-import java.util.concurrent.TimeUnit;
 
 @Aspect
 public class MetricsSchedulingAspect {
@@ -48,8 +49,11 @@ public class MetricsSchedulingAspect {
 
 		if (method.getDeclaringClass().isInterface()) {
 			try {
-				method = pjp.getTarget().getClass().getDeclaredMethod(
-						pjp.getSignature().getName(), method.getParameterTypes());
+				method = pjp
+						.getTarget()
+						.getClass()
+						.getDeclaredMethod(pjp.getSignature().getName(),
+								method.getParameterTypes());
 			}
 			catch (final SecurityException | NoSuchMethodException e) {
 				logger.warn("Unable to perform metrics timing on " + signature, e);
@@ -61,14 +65,15 @@ public class MetricsSchedulingAspect {
 		LongTaskTimer longTaskTimer = null;
 
 		for (Timed timed : AnnotationUtils.findTimed(method).toArray(Timed[]::new)) {
-			if (timed.longTask())
-				longTaskTimer = registry.longTaskTimer(timed.value(), timed.extraTags());
+			if (timed.longTask()) {
+				longTaskTimer = this.registry.longTaskTimer(timed.value(), timed.extraTags());
+			}
 			else {
-				Timer.Builder timerBuilder = registry.timerBuilder(timed.value())
-						.tags(timed.extraTags());
+				Timer.Builder timerBuilder = this.registry.timerBuilder(timed.value()).tags(
+						timed.extraTags());
 				if (timed.quantiles().length > 0) {
-					timerBuilder = timerBuilder.quantiles(
-							WindowSketchQuantiles.quantiles(timed.quantiles()).create());
+					timerBuilder = timerBuilder.quantiles(WindowSketchQuantiles
+							.quantiles(timed.quantiles()).create());
 				}
 				shortTaskTimer = timerBuilder.create();
 			}
@@ -101,12 +106,12 @@ public class MetricsSchedulingAspect {
 	}
 
 	private Object recordThrowable(Timer timer, ThrowableCallable f) throws Throwable {
-		long start = registry.getClock().monotonicTime();
+		long start = this.registry.getClock().monotonicTime();
 		try {
 			return f.call();
 		}
 		finally {
-			timer.record(registry.getClock().monotonicTime() - start,
+			timer.record(this.registry.getClock().monotonicTime() - start,
 					TimeUnit.NANOSECONDS);
 		}
 	}

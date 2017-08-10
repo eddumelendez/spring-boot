@@ -87,8 +87,7 @@ public class EndpointWebMvcManagementContextConfiguration {
 		this.corsProperties = corsProperties;
 		List<EndpointHandlerMappingCustomizer> providedCustomizers = mappingCustomizers
 				.getIfAvailable();
-		this.mappingCustomizers = providedCustomizers == null
-				? Collections.<EndpointHandlerMappingCustomizer>emptyList()
+		this.mappingCustomizers = providedCustomizers == null ? Collections.emptyList()
 				: providedCustomizers;
 	}
 
@@ -164,8 +163,8 @@ public class EndpointWebMvcManagementContextConfiguration {
 				this.managementServerProperties.getSecurity().isEnabled(),
 				managementServerProperties.getSecurity().getRoles());
 		if (this.healthMvcEndpointProperties.getMapping() != null) {
-			healthMvcEndpoint
-					.addStatusMapping(this.healthMvcEndpointProperties.getMapping());
+			healthMvcEndpoint.addStatusMapping(this.healthMvcEndpointProperties
+					.getMapping());
 		}
 		return healthMvcEndpoint;
 	}
@@ -218,8 +217,8 @@ public class EndpointWebMvcManagementContextConfiguration {
 			}
 			config = environment.getProperty("endpoints.logfile.external-file");
 			if (StringUtils.hasText(config)) {
-				return ConditionOutcome.match(
-						message.found("endpoints.logfile.external-file").items(config));
+				return ConditionOutcome.match(message.found(
+						"endpoints.logfile.external-file").items(config));
 			}
 			return ConditionOutcome.noMatch(message.didNotFind("logging file").atAll());
 		}

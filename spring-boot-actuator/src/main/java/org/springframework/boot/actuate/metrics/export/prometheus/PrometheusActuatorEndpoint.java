@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,23 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.boot.actuate.metrics.export.prometheus;
 
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
-import org.springframework.boot.actuate.endpoint.AbstractEndpoint;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.http.ResponseEntity;
+package org.springframework.boot.actuate.metrics.export.prometheus;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 
-import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.common.TextFormat;
+
+import org.springframework.boot.actuate.endpoint.AbstractEndpoint;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 
 /**
  * Spring Boot Actuator endpoint that outputs Prometheus metrics in a format that can be
- * scraped by the Prometheus server
+ * scraped by the Prometheus server.
  */
 @ConfigurationProperties("endpoints.prometheus")
 public class PrometheusActuatorEndpoint extends AbstractEndpoint<ResponseEntity<String>> {
@@ -45,8 +46,9 @@ public class PrometheusActuatorEndpoint extends AbstractEndpoint<ResponseEntity<
 	public ResponseEntity<String> invoke() {
 		try {
 			Writer writer = new StringWriter();
-			TextFormat.write004(writer, collectorRegistry.metricFamilySamples());
-			return ResponseEntity.ok().header(CONTENT_TYPE, TextFormat.CONTENT_TYPE_004)
+			TextFormat.write004(writer, this.collectorRegistry.metricFamilySamples());
+			return ResponseEntity.ok()
+					.header(HttpHeaders.CONTENT_TYPE, TextFormat.CONTENT_TYPE_004)
 					.body(writer.toString());
 		}
 		catch (IOException e) {

@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,10 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -24,11 +29,9 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 /**
  * @author Dave Syer
+ * @version 2.0.0
  */
 public class MetricsEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
@@ -40,8 +43,7 @@ public class MetricsEnvironmentPostProcessor implements EnvironmentPostProcessor
 			SpringApplication application) {
 		// Make spring AOP default to target class so RestTemplates can be customized,
 		// @Scheduled instrumented
-		log.debug(
-				"Setting 'spring.aop.proxyTargetClass=true' to make spring AOP default to target class so RestTemplates can be customized");
+		log.debug("Setting 'spring.aop.proxyTargetClass=true' to make spring AOP default to target class so RestTemplates can be customized");
 		addDefaultProperty(environment, "spring.aop.proxyTargetClass", "true");
 	}
 

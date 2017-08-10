@@ -108,8 +108,7 @@ public class EndpointAutoConfiguration {
 		return new HealthEndpoint(
 				this.healthAggregator == null ? new OrderedHealthAggregator()
 						: this.healthAggregator,
-				this.healthIndicators == null
-						? Collections.<String, HealthIndicator>emptyMap()
+				this.healthIndicators == null ? Collections.emptyMap()
 						: this.healthIndicators);
 	}
 
@@ -122,8 +121,8 @@ public class EndpointAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	public InfoEndpoint infoEndpoint() throws Exception {
-		return new InfoEndpoint(this.infoContributors == null
-				? Collections.<InfoContributor>emptyList() : this.infoContributors);
+		return new InfoEndpoint(this.infoContributors == null ? Collections.emptyList()
+				: this.infoContributors);
 	}
 
 	@Bean
@@ -136,8 +135,9 @@ public class EndpointAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	public TraceEndpoint traceEndpoint() {
-		return new TraceEndpoint(this.traceRepository == null
-				? new InMemoryTraceRepository() : this.traceRepository);
+		return new TraceEndpoint(
+				this.traceRepository == null ? new InMemoryTraceRepository()
+						: this.traceRepository);
 	}
 
 	@Bean
@@ -185,8 +185,7 @@ public class EndpointAutoConfiguration {
 
 		@Bean
 		@ConditionalOnMissingBean
-		public LiquibaseEndpoint liquibaseEndpoint(
-				Map<String, SpringLiquibase> liquibases) {
+		public LiquibaseEndpoint liquibaseEndpoint(Map<String, SpringLiquibase> liquibases) {
 			return new LiquibaseEndpoint(liquibases);
 		}
 

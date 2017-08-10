@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics.web;
 
-import io.micrometer.core.instrument.Tag;
-import org.springframework.util.StringUtils;
-import org.springframework.web.servlet.HandlerMapping;
+import java.util.Arrays;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import static java.util.Arrays.asList;
+import io.micrometer.core.instrument.Tag;
+
+import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.HandlerMapping;
 
 /**
  * Supplies default tags to meters monitoring the Web MVC server (servlet) programming
@@ -38,9 +40,10 @@ public class WebmvcTagConfigurer {
 	 * @param handler The request method that is responsible for handling the request.
 	 * @return A set of tags added to every Spring MVC HTTP request
 	 */
-	@SuppressWarnings("unused") // we aren't doing anything with the handler by default
+	@SuppressWarnings("unused")
+	// we aren't doing anything with the handler by default
 	public Iterable<Tag> httpLongRequestTags(HttpServletRequest request, Object handler) {
-		return asList(method(request), uri(request));
+		return Arrays.asList(method(request), uri(request));
 	}
 
 	/**
@@ -48,11 +51,13 @@ public class WebmvcTagConfigurer {
 	 *
 	 * @param request The HTTP request.
 	 * @param response The HTTP response.
+	 * @param ex The throwable.
 	 * @return A set of tags added to every Spring MVC HTTP request.
 	 */
 	public Iterable<Tag> httpRequestTags(HttpServletRequest request,
 			HttpServletResponse response, Throwable ex) {
-		return asList(method(request), uri(request), exception(ex), status(response));
+		return Arrays.asList(method(request), uri(request), exception(ex),
+				status(response));
 	}
 
 	/**

@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics.binder;
+
+import java.util.ArrayList;
+import java.util.Collection;
+
+import javax.sql.DataSource;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.binder.MeterBinder;
+
 import org.springframework.boot.autoconfigure.jdbc.metadata.DataSourcePoolMetadata;
 import org.springframework.boot.autoconfigure.jdbc.metadata.DataSourcePoolMetadataProvider;
 import org.springframework.boot.autoconfigure.jdbc.metadata.DataSourcePoolMetadataProviders;
-
-import javax.sql.DataSource;
-import java.util.ArrayList;
-import java.util.Collection;
 
 /**
  * @author Jon Schneider
@@ -45,24 +48,25 @@ public class DataSourceMetrics implements MeterBinder {
 
 		DataSourcePoolMetadataProvider provider = new DataSourcePoolMetadataProviders(
 				metadataProviders);
-		poolMetadata = provider.getDataSourcePoolMetadata(dataSource);
-		instrumentedPools.add(poolMetadata);
+		this.poolMetadata = provider.getDataSourcePoolMetadata(dataSource);
+		instrumentedPools.add(this.poolMetadata);
 	}
 
 	@Override
 	public void bindTo(MeterRegistry registry) {
-		if (poolMetadata != null) {
-			if (poolMetadata.getActive() != null)
-				registry.gauge(name + "_active_connections", tags, poolMetadata,
+		if (this.poolMetadata != null) {
+			if (this.poolMetadata.getActive() != null) {
+				registry.gauge(this.name + "_active_connections", this.tags, this.poolMetadata,
 						DataSourcePoolMetadata::getActive);
-
-			if (poolMetadata.getMax() != null)
-				registry.gauge(name + "_max_connections", tags, poolMetadata,
+			}
+			if (this.poolMetadata.getMax() != null) {
+				registry.gauge(this.name + "_max_connections", this.tags, this.poolMetadata,
 						DataSourcePoolMetadata::getMax);
-
-			if (poolMetadata.getMin() != null)
-				registry.gauge(name + "_min_connections", tags, poolMetadata,
+			}
+			if (this.poolMetadata.getMin() != null) {
+				registry.gauge(this.name + "_min_connections", this.tags, this.poolMetadata,
 						DataSourcePoolMetadata::getMin);
+			}
 		}
 	}
 }

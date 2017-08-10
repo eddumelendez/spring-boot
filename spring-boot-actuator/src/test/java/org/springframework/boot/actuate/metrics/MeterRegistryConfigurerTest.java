@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics;
+
+import java.util.Optional;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -21,13 +24,11 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
-
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,11 +39,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MeterRegistryConfigurerTest {
 
 	@Autowired
-	SimpleMeterRegistry registry;
+	private SimpleMeterRegistry registry;
 
 	@Test
 	public void commonTagsAreAppliedToAutoConfiguredBinders() {
-		Optional<Gauge> memUsed = registry.findMeter(Gauge.class, "jvm_memory_used");
+		Optional<Gauge> memUsed = this.registry.findMeter(Gauge.class, "jvm_memory_used");
 		assertThat(memUsed).hasValueSatisfying(
 				g -> assertThat(g.getTags()).contains(Tag.of("region", "us-east-1")));
 	}
@@ -61,7 +62,7 @@ public class MeterRegistryConfigurerTest {
 
 		@Bean
 		public MeterRegistryConfigurer registryConfigurer() {
-			return registry -> registry.commonTags("region", "us-east-1");
+			return (registry) -> registry.commonTags("region", "us-east-1");
 		}
 	}
 }

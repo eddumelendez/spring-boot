@@ -1,11 +1,11 @@
-/**
- * Copyright 2017 Pivotal Software, Inc.
+/*
+ * Copyright 2012-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,20 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.boot.actuate.metrics.web;
 
-import io.micrometer.core.annotation.Timed;
-import io.micrometer.core.instrument.*;
-import io.micrometer.core.instrument.stats.quantile.WindowSketchQuantiles;
-import io.micrometer.core.instrument.util.AnnotationUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.method.HandlerMethod;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -36,10 +25,25 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toSet;
-import static java.util.stream.StreamSupport.stream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.LongTaskTimer;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.stats.quantile.WindowSketchQuantiles;
+import io.micrometer.core.instrument.util.AnnotationUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.method.HandlerMethod;
 
 /**
  * @author Jon Schneider
@@ -74,15 +78,18 @@ public class ControllerMetrics {
 		request.setAttribute(TIMING_REQUEST_ATTRIBUTE, System.nanoTime());
 		request.setAttribute(HANDLER_REQUEST_ATTRIBUTE, handler);
 
-		longTaskTimed(handler).forEach(t -> {
-			if (t.value().isEmpty()) {
-				logger.warn("Unable to perform metrics timing on "
-						+ handler.getShortLogMessage()
-						+ ": @Timed annotation must have a value used to name the metric");
-				return;
-			}
-			longTaskTimerIds.put(request, longTaskTimer(t, request, handler).start());
-		});
+		longTaskTimed(handler)
+				.forEach(
+						t -> {
+							if (t.value().isEmpty()) {
+								logger.warn("Unable to perform metrics timing on "
+										+ handler.getShortLogMessage()
+										+ ": @Timed annotation must have a value used to name the metric");
+								return;
+							}
+							this.longTaskTimerIds.put(request,
+									longTaskTimer(t, request, handler).start());
+						});
 	}
 
 	HttpServletResponse record(HttpServletRequest request, HttpServletResponse response,
@@ -91,88 +98,99 @@ public class ControllerMetrics {
 		Object handler = request.getAttribute(HANDLER_REQUEST_ATTRIBUTE);
 
 		long endTime = System.nanoTime();
-		Throwable thrown = ex != null ? ex
-				: (Throwable) request.getAttribute(EXCEPTION_ATTRIBUTE);
+		Throwable thrown = ex != null ? ex : (Throwable) request
+				.getAttribute(EXCEPTION_ATTRIBUTE);
 
 		// complete any LongTaskTimer tasks running for this method
-		longTaskTimed(handler).forEach(t -> {
-			if (!t.value().isEmpty()) {
-				longTaskTimer(t, request, handler).stop(longTaskTimerIds.remove(request));
-			}
-		});
+		longTaskTimed(handler).forEach(
+				t -> {
+					if (!t.value().isEmpty()) {
+						longTaskTimer(t, request, handler).stop(
+								this.longTaskTimerIds.remove(request));
+					}
+				});
 
 		// record Timer values
-		timed(handler).forEach(t -> {
-			String name = metricName;
-			if (!t.value().isEmpty()) {
-				name = t.value();
-			}
+		timed(handler)
+				.forEach(
+						t -> {
+							String name = this.metricName;
+							if (!t.value().isEmpty()) {
+								name = t.value();
+							}
 
-			Timer.Builder timerBuilder = registry.timerBuilder(name)
-					.tags(tagConfigurer.httpRequestTags(request, response, thrown));
+							Timer.Builder timerBuilder = this.registry.timerBuilder(name)
+									.tags(this.tagConfigurer.httpRequestTags(request,
+											response, thrown));
 
-			String[] extraTags = t.extraTags();
-			if (extraTags.length > 0) {
-				if (extraTags.length % 2 != 0) {
-					if (logger.isErrorEnabled()) {
-						Method method = ((HandlerMethod) handler).getMethod();
-						String target = method.getDeclaringClass().getName() + "."
-								+ method.getName();
-						logger.error("@Timed extraTags array on method " + target
-								+ " size must be even, it is a set of key=value pairs");
-					}
-				}
-				else {
-					timerBuilder = timerBuilder
-							.tags(IntStream.range(0, extraTags.length / 2)
-									.mapToObj(i -> Tag.of(extraTags[i], extraTags[i + 1]))
-									.collect(Collectors.toList()));
-				}
-			}
+							String[] extraTags = t.extraTags();
+							if (extraTags.length > 0) {
+								if (extraTags.length % 2 != 0) {
+									if (logger.isErrorEnabled()) {
+										Method method = ((HandlerMethod) handler)
+												.getMethod();
+										String target = method.getDeclaringClass()
+												.getName() + "." + method.getName();
+										logger.error("@Timed extraTags array on method "
+												+ target
+												+ " size must be even, it is a set of key=value pairs");
+									}
+								}
+								else {
+									timerBuilder = timerBuilder.tags(IntStream
+											.range(0, extraTags.length / 2)
+											.mapToObj(
+													i -> Tag.of(extraTags[i],
+															extraTags[i + 1]))
+											.collect(Collectors.toList()));
+								}
+							}
 
-			if (t.quantiles().length > 0) {
-				timerBuilder = timerBuilder.quantiles(
-						WindowSketchQuantiles.quantiles(t.quantiles()).create());
-			}
+							if (t.quantiles().length > 0) {
+								timerBuilder = timerBuilder
+										.quantiles(WindowSketchQuantiles.quantiles(
+												t.quantiles()).create());
+							}
 
-			timerBuilder.create().record(endTime - startTime, TimeUnit.NANOSECONDS);
-		});
+							timerBuilder.create().record(endTime - startTime,
+									TimeUnit.NANOSECONDS);
+						});
 
 		return response;
 	}
 
 	private LongTaskTimer longTaskTimer(Timed t, HttpServletRequest request,
 			Object handler) {
-		Iterable<Tag> tags = tagConfigurer.httpLongRequestTags(request, handler);
+		Iterable<Tag> tags = this.tagConfigurer.httpLongRequestTags(request, handler);
 		if (t.extraTags().length > 0) {
-			tags = Stream.concat(stream(tags.spliterator(), false),
-					Tags.zip(t.extraTags()).stream()).collect(toList());
+			tags = Stream.concat(StreamSupport.stream(tags.spliterator(), false),
+					Tags.zip(t.extraTags()).stream()).collect(Collectors.toList());
 		}
-		return registry.longTaskTimer(t.value(), tags);
+		return this.registry.longTaskTimer(t.value(), tags);
 	}
 
 	private Set<Timed> longTaskTimed(Object m) {
-		if (!(m instanceof HandlerMethod))
+		if (!(m instanceof HandlerMethod)) {
 			return Collections.emptySet();
-
+		}
 		Set<Timed> timed = AnnotationUtils.findTimed(((HandlerMethod) m).getMethod())
-				.filter(Timed::longTask).collect(toSet());
+				.filter(Timed::longTask).collect(Collectors.toSet());
 		if (timed.isEmpty()) {
 			return AnnotationUtils.findTimed(((HandlerMethod) m).getBeanType())
-					.filter(Timed::longTask).collect(toSet());
+					.filter(Timed::longTask).collect(Collectors.toSet());
 		}
 		return timed;
 	}
 
 	private Set<Timed> timed(Object m) {
-		if (!(m instanceof HandlerMethod))
+		if (!(m instanceof HandlerMethod)) {
 			return Collections.emptySet();
-
+		}
 		Set<Timed> timed = AnnotationUtils.findTimed(((HandlerMethod) m).getMethod())
-				.filter(t -> !t.longTask()).collect(toSet());
+				.filter(t -> !t.longTask()).collect(Collectors.toSet());
 		if (timed.isEmpty()) {
 			return AnnotationUtils.findTimed(((HandlerMethod) m).getBeanType())
-					.filter(t -> !t.longTask()).collect(toSet());
+					.filter(t -> !t.longTask()).collect(Collectors.toSet());
 		}
 		return timed;
 	}
