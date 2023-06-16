@@ -34,6 +34,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
  * @author Moritz Halbritter
  * @author Andy Wilkinson
  * @author Phillip Webb
+ * @author Eddú Meléndez
  */
 class ElasticsearchContainerConnectionDetailsFactory
 		extends ContainerConnectionDetailsFactory<ElasticsearchContainer, ElasticsearchConnectionDetails> {
@@ -61,9 +62,19 @@ class ElasticsearchContainerConnectionDetailsFactory
 		public List<Node> getNodes() {
 			String host = getContainer().getHost();
 			Integer port = getContainer().getMappedPort(DEFAULT_PORT);
-			return List.of(new Node(host, port, Protocol.HTTP, null, null));
+			Protocol protocol = getContainer().caCertAsBytes().isPresent() ? Protocol.HTTPS : Protocol.HTTP;
+			return List.of(new Node(host, port, protocol, null, null));
 		}
 
+		@Override
+		public String getUsername() {
+			return getContainer().caCertAsBytes().isPresent() ? "elastic" : null;
+		}
+
+		@Override
+		public String getPassword() {
+			return getContainer().caCertAsBytes().isPresent() ? getContainer().getEnvMap().get("ELASTIC_PASSWORD") : null;
+		}
 	}
 
 }
