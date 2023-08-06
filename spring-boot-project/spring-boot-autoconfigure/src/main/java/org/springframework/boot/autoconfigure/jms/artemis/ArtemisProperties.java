@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,8 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  */
 @ConfigurationProperties(prefix = "spring.artemis")
 public class ArtemisProperties {
+
+	private static final String DEFAULT_BROKER_URL = "tcp://localhost:61616";
 
 	/**
 	 * Artemis deployment mode, auto-detected by default.
@@ -101,6 +103,13 @@ public class ArtemisProperties {
 
 	public JmsPoolConnectionFactoryProperties getPool() {
 		return this.pool;
+	}
+
+	String determineBrokerUrl() {
+		if (this.brokerUrl != null) {
+			return this.brokerUrl;
+		}
+		return DEFAULT_BROKER_URL;
 	}
 
 	/**
